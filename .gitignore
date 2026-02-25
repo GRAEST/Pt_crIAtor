@@ -9,3 +9,7 @@ modeloPT.docx
 
 # Claude config
 .claude/
+
+# Deploy
+deploy.log
+.env
