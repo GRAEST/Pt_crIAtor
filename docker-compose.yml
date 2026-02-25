@@ -16,6 +16,22 @@ services:
       - pt-creator-uploads:/app/public/uploads
       - pt-creator-materials:/app/public/materials
 
+  webhook:
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    container_name: pt-creator-webhook
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app/repo
+      - ./webhook/hooks.json:/etc/webhook/hooks.json
+    working_dir: /app/repo
+
 volumes:
   pt-creator-data:
   pt-creator-uploads:
