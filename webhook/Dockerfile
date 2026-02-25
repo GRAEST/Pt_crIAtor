@@ -8,6 +8,9 @@ RUN curl -L -o /tmp/webhook.tar.gz \
     tar -xzf /tmp/webhook.tar.gz -C /usr/local/bin --strip-components=1 && \
     rm /tmp/webhook.tar.gz
 
+COPY deploy.sh /usr/local/bin/deploy.sh
+RUN chmod +x /usr/local/bin/deploy.sh
+
 EXPOSE 9000
 
 ENTRYPOINT ["webhook", "-hooks", "/etc/webhook/hooks.json", "-verbose", "-hotreload"]

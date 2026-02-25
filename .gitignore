@@ -12,6 +12,6 @@ modeloPT.docx
 
 # Deploy (server-only files)
 deploy.log
-deploy.sh
+/deploy.sh
 .env
 webhook/hooks.json
