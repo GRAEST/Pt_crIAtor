@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FilePen,
   CheckCircle2,
+  ArrowUpRight,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
@@ -69,45 +70,59 @@ export default function DashboardPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto max-w-7xl px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <Button onClick={handleNewPlan} disabled={creating}>
-            <Plus size={16} />
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        {/* Hero section */}
+        <div className="mb-8 flex items-center justify-between animate-fade-in-up">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 md:text-3xl">
+              Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Gerencie seus planos de trabalho PD&I
+            </p>
+          </div>
+          <Button onClick={handleNewPlan} disabled={creating} size="lg">
+            <Plus size={18} />
             {creating ? "Criando..." : "Novo Plano"}
           </Button>
         </div>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
-          <Card>
+        <div className="mb-8 grid gap-4 sm:grid-cols-3 animate-fade-in-up-delay-1">
+          <Card className="card-hover-primary group">
             <CardHeader>
               <CardTitle>Total de Planos</CardTitle>
             </CardHeader>
             <div className="flex items-center gap-3">
-              <ClipboardList size={24} className="text-blue-500" />
+              <div className="icon-box-primary">
+                <ClipboardList size={20} />
+              </div>
               <span className="text-3xl font-bold text-gray-900">
                 {loading ? "-" : totalPlans}
               </span>
             </div>
           </Card>
-          <Card>
+          <Card className="card-hover-accent group">
             <CardHeader>
               <CardTitle>Rascunhos</CardTitle>
             </CardHeader>
             <div className="flex items-center gap-3">
-              <FilePen size={24} className="text-amber-500" />
+              <div className="icon-box-accent">
+                <FilePen size={20} />
+              </div>
               <span className="text-3xl font-bold text-gray-900">
                 {loading ? "-" : drafts}
               </span>
             </div>
           </Card>
-          <Card>
+          <Card className="card-hover-primary group">
             <CardHeader>
               <CardTitle>Concluídos</CardTitle>
             </CardHeader>
             <div className="flex items-center gap-3">
-              <CheckCircle2 size={24} className="text-green-500" />
+              <div className="icon-box-primary">
+                <CheckCircle2 size={20} />
+              </div>
               <span className="text-3xl font-bold text-gray-900">
                 {loading ? "-" : completed}
               </span>
@@ -116,7 +131,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent plans */}
-        <Card className="mb-8">
+        <Card className="mb-8 animate-fade-in-up-delay-2">
           <CardHeader>
             <CardTitle>Planos Recentes</CardTitle>
           </CardHeader>
@@ -132,7 +147,7 @@ export default function DashboardPage() {
                 <Link
                   key={plan.id}
                   href={`/plans/${plan.id}`}
-                  className="flex items-center justify-between py-3 transition-colors hover:bg-gray-50 -mx-6 px-6"
+                  className="flex items-center justify-between py-3 transition-colors hover:bg-primary-50/50 -mx-6 px-6 rounded-lg"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-gray-900">
@@ -163,30 +178,40 @@ export default function DashboardPage() {
         </Card>
 
         {/* Quick links */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 animate-fade-in-up-delay-3">
           <Link href="/plans">
-            <Card className="transition-colors hover:border-blue-300">
-              <div className="flex items-center gap-3">
-                <FileText size={20} className="text-blue-500" />
-                <div>
-                  <p className="font-medium text-gray-900">Planos de Trabalho</p>
-                  <p className="text-sm text-gray-500">
-                    Ver e gerenciar todos os planos
-                  </p>
+            <Card className="card-hover-primary group cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="icon-box-primary">
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Planos de Trabalho</p>
+                    <p className="text-sm text-gray-500">
+                      Ver e gerenciar todos os planos
+                    </p>
+                  </div>
                 </div>
+                <ArrowUpRight size={16} className="text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </div>
             </Card>
           </Link>
           <Link href="/snippets">
-            <Card className="transition-colors hover:border-blue-300">
-              <div className="flex items-center gap-3">
-                <Puzzle size={20} className="text-blue-500" />
-                <div>
-                  <p className="font-medium text-gray-900">Snippets</p>
-                  <p className="text-sm text-gray-500">
-                    Gerenciar trechos de texto reutilizáveis
-                  </p>
+            <Card className="card-hover-accent group cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="icon-box-accent">
+                    <Puzzle size={20} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Snippets</p>
+                    <p className="text-sm text-gray-500">
+                      Gerenciar trechos de texto reutilizáveis
+                    </p>
+                  </div>
                 </div>
+                <ArrowUpRight size={16} className="text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </div>
             </Card>
           </Link>

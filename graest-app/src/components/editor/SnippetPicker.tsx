@@ -93,7 +93,7 @@ export function SnippetPicker({ sectionNumber, onInsert }: SnippetPickerProps) {
                     <button
                       key={snippet.id}
                       onClick={() => handleInsert(snippet)}
-                      className="w-full rounded-lg border border-gray-200 p-4 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                      className="w-full rounded-lg border border-gray-200 p-4 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
                     >
                       <p className="font-medium text-gray-900">{snippet.name}</p>
                       <p className="mt-1 line-clamp-2 text-sm text-gray-500">

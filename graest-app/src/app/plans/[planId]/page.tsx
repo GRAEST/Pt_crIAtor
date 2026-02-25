@@ -238,7 +238,7 @@ export default function PlanEditorPage({
           <p className="text-red-600">{error}</p>
           <button
             onClick={() => router.push("/plans")}
-            className="text-sm text-blue-600 underline"
+            className="text-sm text-primary-600 underline"
           >
             Voltar para lista de planos
           </button>

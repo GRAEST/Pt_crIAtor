@@ -15,7 +15,7 @@ export function WizardSidebar() {
         {/* Materials link */}
         <Link
           href={`/plans/${usePlanStore.getState().planId}/materials`}
-          className="mb-4 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2.5 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
+          className="mb-4 flex items-center gap-2 rounded-lg border border-accent-200 bg-accent-50 px-3 py-2.5 text-sm font-medium text-accent-700 hover:bg-accent-100 transition-colors"
         >
           <Paperclip size={16} />
           Materiais de Contexto
@@ -36,7 +36,7 @@ export function WizardSidebar() {
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors",
                   isActive
-                    ? "bg-blue-50 text-blue-700 font-medium"
+                    ? "bg-primary-50 text-primary-700 font-medium"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 )}
               >
@@ -44,7 +44,7 @@ export function WizardSidebar() {
                   className={cn(
                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium",
                     isActive
-                      ? "bg-blue-600 text-white"
+                      ? "bg-primary-600 text-white"
                       : isCompleted
                       ? "bg-green-100 text-green-700"
                       : "bg-gray-100 text-gray-500"

@@ -158,7 +158,7 @@ export function Step08PlanoAcao() {
                         placeholder={`Subatividade ${index + 1}.${
                           subIndex + 1
                         }`}
-                        className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                       />
                       {(activity.subActivities || []).length > 1 && (
                         <button

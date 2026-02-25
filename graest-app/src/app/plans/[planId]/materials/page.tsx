@@ -138,7 +138,7 @@ export default function MaterialsPage() {
         <div className="mx-auto flex max-w-4xl items-center gap-4">
           <button
             onClick={() => router.push(`/plans/${planId}`)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-primary-600 transition-colors"
           >
             <ArrowLeft size={16} />
             Voltar ao Plano
@@ -155,8 +155,8 @@ export default function MaterialsPage() {
 
       <div className="mx-auto max-w-4xl px-6 py-8">
         {/* Info banner */}
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <p className="text-sm text-blue-800">
+        <div className="mb-6 rounded-lg border border-primary-200 bg-primary-50 p-4">
+          <p className="text-sm text-primary-800">
             Deposite aqui todos os materiais que servirão de contexto para a IA
             gerar sugestões nas seções do plano: emails, apresentações, PDFs,
             documentos, anotações, etc.
@@ -167,7 +167,7 @@ export default function MaterialsPage() {
         <div
           className={`mb-6 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
             dragActive
-              ? "border-blue-500 bg-blue-50"
+              ? "border-primary-500 bg-primary-50"
               : "border-gray-300 bg-white hover:border-gray-400"
           }`}
           onDragOver={(e) => {
@@ -190,7 +190,7 @@ export default function MaterialsPage() {
             Arraste arquivos aqui ou{" "}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="font-medium text-blue-600 hover:underline"
+              className="font-medium text-primary-600 hover:underline"
               disabled={uploading}
             >
               clique para selecionar
@@ -200,7 +200,7 @@ export default function MaterialsPage() {
             PDF, DOCX, PPTX, TXT, imagens — máximo 10MB cada
           </p>
           {uploading && (
-            <p className="mt-2 text-sm text-blue-600 animate-pulse">
+            <p className="mt-2 text-sm text-primary-600 animate-pulse">
               Enviando...
             </p>
           )}
@@ -217,19 +217,19 @@ export default function MaterialsPage() {
             placeholder="Título (ex: Email do cliente, Notas da reunião...)"
             value={textLabel}
             onChange={(e) => setTextLabel(e.target.value)}
-            className="mb-3 w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            className="mb-3 w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
           />
           <textarea
             placeholder="Cole aqui o conteúdo do email, anotações, informações relevantes..."
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             rows={5}
-            className="mb-3 w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-y"
+            className="mb-3 w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none resize-y"
           />
           <button
             onClick={addText}
             disabled={!textInput.trim() || uploading}
-            className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
           >
             <Plus size={16} />
             Salvar texto

@@ -52,7 +52,7 @@ export function StepRenderer() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <span className="text-sm font-medium text-blue-600">
+        <span className="text-sm font-medium text-primary-600">
           Seção {section.number}
         </span>
         <h1 className="mt-1 text-2xl font-bold text-gray-900">

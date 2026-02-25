@@ -99,7 +99,7 @@ export function Step00Cabecalho() {
             value={formData.partnerName}
             onChange={(e) => updateField("partnerName", e.target.value)}
             placeholder="Ex: Salcomp"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
         </div>
         <div>
@@ -111,7 +111,7 @@ export function Step00Cabecalho() {
               type="file"
               accept="image/*"
               onChange={handleImageUpload("partnerLogo")}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100"
             />
             {formData.partnerLogo && (
               <button
@@ -143,7 +143,7 @@ export function Step00Cabecalho() {
             value={formData.foundationName}
             onChange={(e) => updateField("foundationName", e.target.value)}
             placeholder="Ex: FADECT"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
         </div>
         <div>
@@ -155,7 +155,7 @@ export function Step00Cabecalho() {
               type="file"
               accept="image/*"
               onChange={handleImageUpload("foundationLogo")}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100"
             />
             {formData.foundationLogo && (
               <button

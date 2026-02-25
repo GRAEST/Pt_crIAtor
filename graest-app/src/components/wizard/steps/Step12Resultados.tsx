@@ -59,7 +59,7 @@ export function Step12Resultados() {
                 name="trlLevel"
                 checked={formData.trlMrlLevel === trl.level}
                 onChange={() => updateField("trlMrlLevel", trl.level)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500"
               />
               <span className="text-sm text-gray-700">
                 <span className="font-medium">TRL {trl.level}</span> -{" "}
@@ -73,7 +73,7 @@ export function Step12Resultados() {
             <button
               type="button"
               onClick={() => updateField("trlMrlLevel", null)}
-              className="text-sm text-blue-600 hover:underline mt-1"
+              className="text-sm text-primary-600 hover:underline mt-1"
             >
               Limpar seleção
             </button>
