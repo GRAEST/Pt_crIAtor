@@ -130,7 +130,8 @@ REGRAS:
 - Se houver exemplos, use como referência de estilo e profundidade
 - Gere texto pronto para uso, sem marcadores como "[inserir aqui]"
 - Não inclua títulos de seção — apenas o conteúdo
-- Seja detalhado e completo, mas conciso`;
+- Seja detalhado e completo, mas conciso
+- IMPORTANTE: NÃO use formatação Markdown. Não use asteriscos (*) para negrito ou itálico, não use cerquilhas (#) para títulos, não use hífens (-) para listas. Escreva texto corrido puro, usando apenas quebras de linha para separar parágrafos.`;
 
     let userPrompt = `${sectionPrompt}\n\n`;
 
@@ -180,7 +181,7 @@ REGRAS:
 
     // 4. Call Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],

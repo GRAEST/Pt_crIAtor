@@ -14,7 +14,7 @@ import {
   Undo,
   Redo,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, aiTextToHtml } from "@/lib/utils";
 import { AiBubbleMenu } from "./AiBubbleMenu";
 import { AiIdlePrompt } from "./AiIdlePrompt";
 
@@ -135,12 +135,12 @@ export function RichTextEditor({
 
   const handleAiInsert = useCallback((text: string) => {
     if (!editor) return;
-    editor.chain().focus().insertContent(text).run();
+    editor.chain().focus().insertContent(aiTextToHtml(text)).run();
   }, [editor]);
 
   const handleAiReplace = useCallback((text: string) => {
     if (!editor) return;
-    editor.chain().focus().selectAll().deleteSelection().insertContent(text).run();
+    editor.chain().focus().selectAll().deleteSelection().insertContent(aiTextToHtml(text)).run();
   }, [editor]);
 
   if (!editor) return null;

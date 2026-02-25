@@ -45,6 +45,12 @@ function lookupLabel(
 // ---------------------------------------------------------------------------
 const DEFAULT_FONT = '<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:sz w:val="20"/><w:szCs w:val="20"/>';
 
+// Paragraph properties: justified text
+const PARA_PROPS = '<w:pPr><w:jc w:val="both"/></w:pPr>';
+
+// Empty paragraph used as a blank line separator between content paragraphs
+const EMPTY_PARA = `<w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>`;
+
 // ---------------------------------------------------------------------------
 // TipTap JSON → OOXML conversion
 // ---------------------------------------------------------------------------
@@ -107,7 +113,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
     switch (node.type) {
       case "paragraph": {
         const runs = nodeToRuns(node);
-        paragraphs.push(`<w:p>${runs}</w:p>`);
+        paragraphs.push(`<w:p>${PARA_PROPS}${runs}</w:p>`);
         break;
       }
 
@@ -122,7 +128,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
               })
               .join("")
           : "";
-        paragraphs.push(`<w:p>${runs}</w:p>`);
+        paragraphs.push(`<w:p>${PARA_PROPS}${runs}</w:p>`);
         break;
       }
 
@@ -133,7 +139,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
               for (const child of listItem.content) {
                 const runs = nodeToRuns(child);
                 paragraphs.push(
-                  `<w:p><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">\u2022 </w:t></w:r>${runs}</w:p>`
+                  `<w:p>${PARA_PROPS}<w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">\u2022 </w:t></w:r>${runs}</w:p>`
                 );
               }
             }
@@ -150,7 +156,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
               for (const child of listItem.content) {
                 const runs = nodeToRuns(child);
                 paragraphs.push(
-                  `<w:p><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">${counter}. </w:t></w:r>${runs}</w:p>`
+                  `<w:p>${PARA_PROPS}<w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">${counter}. </w:t></w:r>${runs}</w:p>`
                 );
                 counter++;
               }
@@ -165,7 +171,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
           for (const child of node.content) {
             const runs = nodeToRuns(child);
             paragraphs.push(
-              `<w:p><w:pPr><w:ind w:left="720"/></w:pPr>${runs}</w:p>`
+              `<w:p><w:pPr><w:ind w:left="720"/><w:jc w:val="both"/></w:pPr>${runs}</w:p>`
             );
           }
         }
@@ -200,15 +206,16 @@ function tiptapToOoxml(content: JSONContent | null): string {
       default: {
         const runs = nodeToRuns(node);
         if (runs) {
-          paragraphs.push(`<w:p>${runs}</w:p>`);
+          paragraphs.push(`<w:p>${PARA_PROPS}${runs}</w:p>`);
         }
         break;
       }
     }
   }
 
+  // Join paragraphs with an empty line between each one
   return paragraphs.length > 0
-    ? paragraphs.join("")
+    ? paragraphs.join(EMPTY_PARA)
     : `<w:p><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>`;
 }
 

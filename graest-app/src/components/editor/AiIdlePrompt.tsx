@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Editor } from "@tiptap/react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { usePlanStore } from "@/lib/store";
+import { aiTextToHtml } from "@/lib/utils";
 
 interface AiIdlePromptProps {
   editor: Editor;
@@ -145,7 +146,7 @@ export function AiIdlePrompt({ editor, section, fieldName }: AiIdlePromptProps) 
       const data = await res.json();
       if (res.ok && data.suggestion) {
         // Insert at current cursor position
-        editor.chain().focus().insertContent(data.suggestion).run();
+        editor.chain().focus().insertContent(aiTextToHtml(data.suggestion)).run();
       }
     } catch {
       // Silently fail — user can try again

@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { usePlanStore } from "@/lib/store";
+import { aiTextToHtml } from "@/lib/utils";
 
 interface AiBubbleMenuProps {
   editor: Editor;
@@ -146,7 +147,7 @@ export function AiBubbleMenu({ editor, section, fieldName }: AiBubbleMenuProps) 
     if (!suggestion) return;
     // Replace the selected text with the suggestion
     const { from, to } = editor.state.selection;
-    editor.chain().focus().deleteRange({ from, to }).insertContent(suggestion).run();
+    editor.chain().focus().deleteRange({ from, to }).insertContent(aiTextToHtml(suggestion)).run();
     closeMenu();
   };
 
