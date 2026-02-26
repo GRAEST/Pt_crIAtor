@@ -194,7 +194,7 @@ function tiptapToOoxml(content: JSONContent | null): string {
                   // Blank line between modules (not before first)
                   const FONT_BOLD = `<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/>`;
                   if (!isFirstModule) {
-                    paragraphs.push(`<w:p><w:pPr><w:spacing w:line="276" w:lineRule="auto"/></w:pPr></w:p>`);
+                    paragraphs.push(`<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r></w:p>`);
                   }
                   paragraphs.push(
                     `<w:p><w:pPr><w:spacing w:after="40" w:line="276" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${FONT_BOLD}</w:rPr><w:t xml:space="preserve">${escapeXml(plainText)}</w:t></w:r></w:p>`
