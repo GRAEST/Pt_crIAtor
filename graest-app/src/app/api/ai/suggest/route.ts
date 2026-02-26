@@ -13,9 +13,13 @@ const DEFAULT_EXAMPLE_LIMIT = 3000;
 
 // Section-specific max output tokens
 const MAX_OUTPUT_TOKENS: Record<number, number> = {
+  4: 8192,  // Motivação
+  5: 8192,  // Objetivos
   6: 16384, // Escopo needs very long output
+  7: 8192,  // Estratégias
+  9: 8192,  // Recursos Humanos
 };
-const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_MAX_TOKENS = 8192;
 
 // Dynamically import pdf-parse (CommonJS module)
 async function extractPdfText(buffer: Buffer): Promise<string> {
