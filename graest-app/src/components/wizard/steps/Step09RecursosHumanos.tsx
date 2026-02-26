@@ -106,6 +106,8 @@ export function Step09RecursosHumanos() {
               education: prof.education,
               degree: prof.degree,
               miniCv: prof.miniCv,
+              roleInProject: prof.roleInProject,
+              category: prof.category,
             },
           },
         }),

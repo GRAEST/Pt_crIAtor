@@ -259,8 +259,10 @@ REGRAS:
   activityAssignment: `Campo "Atribuição na Atividade" (Recursos Humanos): Escreva a atribuição de um profissional dentro de um projeto de P&D.
 
 REGRAS:
+- A "Função no Projeto" é a informação MAIS IMPORTANTE — as atribuições devem estar diretamente alinhadas e ser coerentes com essa função
+- Se a função é "Desenvolvedor Back End", descreva atribuições de back-end; se é "Designer UX/UI", descreva atribuições de design, etc.
 - Escreva um parágrafo corrido descrevendo detalhadamente o que o profissional fará no projeto
-- Baseie-se na formação, titulação e experiência (Mini CV) do profissional para contextualizar suas atribuições
+- Complemente com a formação, titulação e experiência (Mini CV) para enriquecer o contexto
 - Relacione as atribuições com as atividades e objetivos do projeto
 - Mencione responsabilidades técnicas específicas, entregas esperadas e contribuições
 - Use linguagem técnica e formal, em português brasileiro

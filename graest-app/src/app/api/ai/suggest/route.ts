@@ -189,6 +189,8 @@ REGRAS:
         if (prof.education) userPrompt += `- Formação: ${prof.education}\n`;
         if (prof.degree) userPrompt += `- Titulação: ${prof.degree}\n`;
         if (prof.miniCv) userPrompt += `- Mini CV: ${prof.miniCv}\n`;
+        if (prof.roleInProject) userPrompt += `- Função no Projeto: ${prof.roleInProject}\n`;
+        if (prof.category) userPrompt += `- Categoria: ${prof.category === "professor" ? "Professor Pesquisador" : "Aluno Pesquisador"}\n`;
         userPrompt += `\n`;
       }
     }
