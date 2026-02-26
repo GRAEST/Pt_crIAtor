@@ -195,6 +195,38 @@ Inclua TODAS as tecnologias relevantes: linguagens, frameworks, bancos de dados,
 - Se aplicável, mencione padrões de projeto (MVC, microsserviços, etc.)
 - Descreva o fluxo de dados entre as camadas
 
+DIAGRAMA DE MÓDULOS (OBRIGATÓRIO):
+Após gerar todo o texto, inclua no FINAL da resposta um bloco com o diagrama Mermaid dos módulos do sistema.
+O diagrama DEVE usar EXATAMENTE os módulos definidos nos objetivos específicos do projeto (listados no contexto).
+Use EXATAMENTE este formato de delimitação:
+
+[MERMAID_START]
+graph TD
+    subgraph Seg["Segurança e Acesso"]
+        direction LR
+        A[Módulo de Autenticação]
+        B[Módulo de Privacidade]
+    end
+    subgraph Core["Processamento e Interface"]
+        direction LR
+        C[Módulo de Interface]
+        D[Módulo de API]
+    end
+    Seg --> Core
+[MERMAID_END]
+
+Regras do diagrama:
+- Use graph TD (de cima para baixo) — subgraphs empilhados verticalmente = layout compacto
+- Use SUBGRAPHS para agrupar módulos por categoria (ex: "Segurança", "Interface e Processamento", "Dados/IA")
+- Dentro de cada subgraph, use "direction LR" para que os módulos fiquem LADO A LADO horizontalmente
+- Agrupe em 2-3 subgraphs com 2-4 módulos cada — isso cria um formato QUADRADO CENTRALIZADO
+- Use TODOS os módulos dos objetivos específicos — cada módulo deve aparecer como um nó
+- Use o nome COMPLETO do módulo nos nós, incluindo "Módulo de"
+- Conecte os subgraphs entre si com setas mostrando o fluxo de dados
+- Use cores DIFERENTES por grupo via style do Mermaid
+- O diagrama deve ser COMPACTO e CENTRALIZADO, não espalhado
+- Coloque o bloco [MERMAID_START]...[MERMAID_END] SEMPRE no final, APÓS todo o texto do escopo
+
 REGRAS IMPORTANTES:
 - Use subtítulos numerados (4.1, 4.2, 4.3, 4.4, 4.5) exatamente como nos exemplos
 - Para listas de funcionalidades, use marcadores com bullet point
@@ -255,6 +287,127 @@ REGRAS:
 - O formato típico é "Tipo - Especialização" (ex: "Aluno Pesquisador - Desenvolvedor Back End")
 - Se o profissional tiver mestrado/doutorado, considere "Pesquisador" ao invés de "Aluno Pesquisador"
 - Retorne APENAS o texto da função, sem aspas, prefixos ou explicações`,
+
+  mermaidDiagram: `Gere APENAS um diagrama Mermaid dos módulos do projeto, usando os módulos listados nos dados do projeto.
+
+O diagrama deve usar SUBGRAPHS para agrupar módulos por categoria, com layout de CIMA para BAIXO (graph TD), resultando em um diagrama COMPACTO e CENTRALIZADO.
+
+REGRAS:
+- Retorne APENAS o bloco Mermaid, sem texto adicional
+- Use o formato: [MERMAID_START]graph TD ... [MERMAID_END]
+- Use graph TD (de cima para baixo) — isso faz os subgraphs ficarem empilhados, criando um layout COMPACTO
+- Use SUBGRAPHS para agrupar os módulos por categoria/camada (ex: "Segurança", "Interface", "Processamento", "Dados/IA")
+- Dentro de cada subgraph, use "direction LR" para que os módulos dentro do grupo fiquem lado a lado horizontalmente
+- Cada módulo dos objetivos específicos deve aparecer como um nó
+- Use o nome COMPLETO do módulo nos nós, incluindo "Módulo de"
+- Conecte os subgraphs entre si com setas mostrando o fluxo de dados/dependências
+- Agrupe em 2-3 subgraphs, cada um com 2-4 módulos lado a lado — isso cria um formato QUADRADO
+- Use IDs descritivos curtos
+- IMPORTANTE: Use cores DIFERENTES para cada subgraph usando a sintaxe style do Mermaid
+- Cores sugeridas: amarelo/laranja para segurança, rosa para frontend/UI, azul para backend/processamento, verde para dados/IA, roxo para notificações
+- Use a sintaxe "style ID fill:#cor,stroke:#cor,color:#1e293b" para os nós dentro de cada grupo
+
+Exemplo de saída (note: graph TD + direction LR dentro dos subgraphs = layout compacto quadrado):
+[MERMAID_START]
+graph TD
+    subgraph Seg["Segurança e Acesso"]
+        direction LR
+        A[Módulo de Autenticação e Autorização]
+        B[Módulo de Segurança e Privacidade]
+    end
+
+    subgraph Core["Processamento e Interface"]
+        direction LR
+        C[Módulo de Interface do Usuário]
+        D[Módulo de API de Análise]
+    end
+
+    subgraph Data["Dados e Inteligência"]
+        direction LR
+        E[Módulo de Inteligência Artificial]
+        F[Módulo de Curadoria de Dataset]
+        G[Módulo de Notificações]
+    end
+
+    Seg --> Core --> Data
+
+    style A fill:#fff3cd,stroke:#f59e0b,color:#1e293b
+    style B fill:#fff3cd,stroke:#f59e0b,color:#1e293b
+    style C fill:#ffe4e6,stroke:#e11d48,color:#1e293b
+    style D fill:#dbeafe,stroke:#3b82f6,color:#1e293b
+    style E fill:#dcfce7,stroke:#16a34a,color:#1e293b
+    style F fill:#dcfce7,stroke:#16a34a,color:#1e293b
+    style G fill:#f3e8ff,stroke:#9333ea,color:#1e293b
+[MERMAID_END]`,
+
+  architectureDiagram: `Gere APENAS o código HTML/CSS de um diagrama de ARQUITETURA DA SOLUÇÃO do projeto.
+
+IMPORTANTE: Analise cuidadosamente a imagem de referência fornecida e gere um diagrama HTML/CSS que replique EXATAMENTE o mesmo estilo visual:
+- Fundo escuro (#1e293b)
+- Blocos retangulares com bordas coloridas e cantos arredondados
+- Layout da esquerda para direita usando CSS flexbox
+- Setas simples entre os blocos (use → ou elementos com border)
+- Textos claros sobre fundo escuro
+- Blocos aninhados dentro de containers maiores
+
+REGRAS:
+- Retorne APENAS HTML/CSS dentro de [ARCHITECTURE_START]...[ARCHITECTURE_END]
+- NÃO inclua <html>, <head>, <body> — apenas o conteúdo do diagrama com <style> e <div>
+- O HTML deve ser SELF-CONTAINED com estilos inline ou uma tag <style> no início
+- Use CSS flexbox para o layout (display: flex, gap, etc.)
+- A estrutura do diagrama DEVE seguir o padrão da imagem de referência:
+  1. ESQUERDA: Ator principal (Usuário) com ícone/emoji e dispositivos abaixo
+  2. CENTRO-ESQUERDA: Aplicação principal (grande bloco) com subcamadas internas:
+     - Barras verticais laterais para Segurança, Configuração, Comunicação
+     - Dentro: camadas Apresentação, Negócios, Dados empilhadas com subcaixas
+  3. CENTRO: Conector "API" (bloco vertical)
+  4. CENTRO-DIREITA: Servidor/Backend com subcamadas
+  5. DIREITA: APIs/Serviços Externos
+- Adapte os nomes dos componentes ao contexto REAL do projeto
+- Use cores distintas por camada:
+  - Fundo geral: #1e293b (azul escuro)
+  - Dispositivos: #374151 com borda #6b7280
+  - Apresentação/UI: #1e3a5f com borda #3b82f6
+  - Negócios/Lógica: #3b2f1a com borda #f59e0b
+  - Dados: #3b331a com borda #92400e
+  - Segurança: #3b1a1a com borda #dc2626
+  - Servidor: #1a3b2a com borda #16a34a
+  - APIs Externas: #3b1a2e com borda #ec4899
+  - Texto: #e2e8f0 para texto claro
+- Todas as caixas internas devem ter: padding 6px 10px, border-radius 4px, font-size 11px
+- O diagrama inteiro deve ter no máximo 800px de largura
+- Use font-family: system-ui, sans-serif
+
+Exemplo simplificado de saída:
+[ARCHITECTURE_START]
+<style>
+  .arch-container { display: flex; align-items: center; gap: 12px; font-family: system-ui, sans-serif; color: #e2e8f0; font-size: 11px; max-width: 800px; }
+  .arch-block { border-radius: 8px; padding: 10px; }
+  .arch-label { font-size: 10px; font-weight: 600; margin-bottom: 6px; text-align: center; }
+  .arch-item { padding: 4px 8px; border-radius: 4px; margin: 3px; font-size: 10px; text-align: center; }
+  .arch-arrow { font-size: 18px; color: #94a3b8; flex-shrink: 0; }
+</style>
+<div class="arch-container">
+  <div style="text-align:center">
+    <div style="font-size:28px">👤</div>
+    <div style="font-size:10px;margin-top:4px">Usuário</div>
+  </div>
+  <div class="arch-arrow">→</div>
+  <div class="arch-block" style="background:#374151;border:2px solid #6b7280">
+    <div class="arch-label">Dispositivos</div>
+    <div class="arch-item" style="background:#4b5563;border:1px solid #9ca3af">Dispositivo 1</div>
+  </div>
+  <div class="arch-arrow">→</div>
+  <div class="arch-block" style="background:#1e3a5f;border:2px solid #3b82f6;flex:1">
+    <div class="arch-label">Aplicação</div>
+    <!-- subcamadas aqui -->
+  </div>
+  <div class="arch-arrow">→</div>
+  <div class="arch-block" style="background:#1a3b2a;border:2px solid #16a34a">
+    <div class="arch-label">Servidor</div>
+  </div>
+</div>
+[ARCHITECTURE_END]`,
 
   activityAssignment: `Campo "Atribuição na Atividade" (Recursos Humanos): Escreva a atribuição de um profissional dentro de um projeto de P&D.
 

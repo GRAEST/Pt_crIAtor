@@ -7,6 +7,7 @@ import { RichTextEditor } from "@/components/editor/RichTextEditor";
 import { SnippetPicker } from "@/components/editor/SnippetPicker";
 import { ExampleViewer } from "@/components/editor/ExampleViewer";
 import { EapTreeEditor, replaceEapPlaceholder } from "@/components/eap/EapTreeEditor";
+import { ModuleDiagramGenerator, ArchitectureDiagramGenerator, replaceModulePlaceholder, replaceArchitecturePlaceholder, extractMermaidFromResponse, extractArchitectureFromResponse } from "@/components/mermaid/ModuleDiagramGenerator";
 import { aiTextToHtml, jsonContentToText } from "@/lib/utils";
 import type { JSONContent, Editor } from "@tiptap/react";
 
@@ -69,7 +70,11 @@ export function Step06Escopo() {
   const { formData, updateField } = usePlanStore();
   const [escopoEditor, setEscopoEditor] = useState<Editor | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [mermaidCode, setMermaidCode] = useState<string | null>(null);
+  const [architectureCode, setArchitectureCode] = useState<string | null>(null);
   const captureEapRef = useRef<(() => Promise<string | null>) | null>(null);
+  const captureModuleDiagramRef = useRef<(() => Promise<string | null>) | null>(null);
+  const captureArchitectureRef = useRef<(() => Promise<string | null>) | null>(null);
 
   const handleEditorReady = useCallback((editor: Editor) => {
     setEscopoEditor(editor);
@@ -96,6 +101,16 @@ export function Step06Escopo() {
       const objetivosGeraisText = jsonContentToText(formData.objetivosGerais);
       const objetivosEspText = jsonContentToText(formData.objetivosEspecificos);
 
+      // Extract module names from objetivos específicos (format: "- Módulo de X:")
+      const moduleNames: string[] = [];
+      if (formData.useModulosApproach && objetivosEspText) {
+        const moduleRegex = /[-•]\s*(Módulo\s+de\s+[^:\n]+)/gi;
+        let match;
+        while ((match = moduleRegex.exec(objetivosEspText)) !== null) {
+          moduleNames.push(match[1].trim());
+        }
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const projectContext: Record<string, any> = {
         projectName: formData.projectName,
@@ -104,6 +119,7 @@ export function Step06Escopo() {
         motivacao: motivacaoText?.slice(0, 2000),
         objetivosGerais: objetivosGeraisText?.slice(0, 1000),
         objetivosEspecificos: objetivosEspText?.slice(0, 1000),
+        moduleNames: moduleNames.length > 0 ? moduleNames : undefined,
       };
 
       if (formData.activities?.length > 0) {
@@ -130,8 +146,118 @@ export function Step06Escopo() {
 
       const data = await res.json();
       if (res.ok && data.suggestion) {
-        // Insert AI text into editor
-        escopoEditor.chain().focus().insertContent(aiTextToHtml(data.suggestion)).run();
+        // Extract Mermaid diagram code from AI response (if present)
+        let { mermaidCode: extractedMermaid, cleanText } = extractMermaidFromResponse(data.suggestion);
+
+        // Insert AI text into editor (without the Mermaid block)
+        escopoEditor.chain().focus().insertContent(aiTextToHtml(cleanText)).run();
+
+        // If AI didn't include a Mermaid block but we have module names, generate it separately
+        if (!extractedMermaid && moduleNames.length > 0) {
+          try {
+            const mermaidRes = await fetch("/api/ai/suggest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                planId,
+                section: 6,
+                fieldName: "mermaidDiagram",
+                currentContent: "",
+                action: "generate",
+                projectContext: {
+                  projectName: formData.projectName,
+                  projectNickname: formData.projectNickname,
+                  moduleNames,
+                },
+              }),
+            });
+            const mermaidData = await mermaidRes.json();
+            if (mermaidRes.ok && mermaidData.suggestion) {
+              const extracted = extractMermaidFromResponse(mermaidData.suggestion);
+              if (extracted.mermaidCode) {
+                extractedMermaid = extracted.mermaidCode;
+              }
+            }
+          } catch (err) {
+            console.error("Separate Mermaid generation error:", err);
+          }
+        }
+
+        // If Mermaid code was found, render it and replace the placeholder
+        if (extractedMermaid) {
+          setMermaidCode(extractedMermaid);
+
+          // Wait for Mermaid to render, then capture and replace placeholder
+          setTimeout(async () => {
+            const hasPlaceholder = escopoEditor.state.doc.textContent.match(/\[Inserir Figura:.*[Mm][oó]dulo.*\]/i);
+            const hasCapture = !!captureModuleDiagramRef.current;
+            console.log(`[Mermaid] Attempting capture: hasCapture=${hasCapture}, hasPlaceholder=${!!hasPlaceholder}`);
+
+            if (captureModuleDiagramRef.current && hasPlaceholder) {
+              try {
+                const moduleUrl = await captureModuleDiagramRef.current();
+                console.log(`[Mermaid] Captured image: ${moduleUrl ? "success" : "null"}`);
+                if (moduleUrl) {
+                  const replaced = replaceModulePlaceholder(escopoEditor, moduleUrl);
+                  console.log(`[Mermaid] Placeholder replaced: ${replaced}`);
+                }
+              } catch (err) {
+                console.error("Auto module diagram capture error:", err);
+              }
+            }
+          }, 2000); // Wait for Mermaid rendering
+        }
+
+        // Generate architecture diagram if placeholder exists
+        const hasArchPlaceholder = escopoEditor.state.doc.textContent.match(/\[Inserir Figura:.*[Aa]rquitetura.*\]/i);
+        if (hasArchPlaceholder) {
+          try {
+            const archRes = await fetch("/api/ai/suggest", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                planId,
+                section: 6,
+                fieldName: "architectureDiagram",
+                currentContent: "",
+                action: "generate",
+                projectContext: {
+                  projectName: formData.projectName,
+                  projectNickname: formData.projectNickname,
+                  motivacao: motivacaoText?.slice(0, 1000),
+                  objetivosGerais: objetivosGeraisText?.slice(0, 500),
+                  objetivosEspecificos: objetivosEspText?.slice(0, 1000),
+                  moduleNames: moduleNames.length > 0 ? moduleNames : undefined,
+                },
+              }),
+            });
+            const archData = await archRes.json();
+            if (archRes.ok && archData.suggestion) {
+              const extracted = extractArchitectureFromResponse(archData.suggestion);
+              if (extracted.htmlCode) {
+                setArchitectureCode(extracted.htmlCode);
+
+                // Wait for HTML to render, then capture and replace placeholder
+                setTimeout(async () => {
+                  if (captureArchitectureRef.current) {
+                    try {
+                      const archUrl = await captureArchitectureRef.current();
+                      console.log(`[Architecture] Captured image: ${archUrl ? "success" : "null"}`);
+                      if (archUrl) {
+                        const replaced = replaceArchitecturePlaceholder(escopoEditor, archUrl);
+                        console.log(`[Architecture] Placeholder replaced: ${replaced}`);
+                      }
+                    } catch (err) {
+                      console.error("Auto architecture diagram capture error:", err);
+                    }
+                  }
+                }, 2500);
+              }
+            }
+          } catch (err) {
+            console.error("Architecture diagram generation error:", err);
+          }
+        }
 
         // Auto-replace [Inserir Figura: ...EAP...] placeholder with actual EAP image
         if (escopoEditor.state.doc.textContent.includes("[Inserir Figura:") && captureEapRef.current) {
@@ -177,6 +303,18 @@ export function Step06Escopo() {
 
       {/* EAP Tree Editor */}
       <EapTreeEditor escopoEditor={escopoEditor} captureRef={captureEapRef} />
+
+      {/* Module Diagram (shown after AI generates Mermaid code) */}
+      <ModuleDiagramGenerator
+        mermaidCode={mermaidCode}
+        captureRef={captureModuleDiagramRef}
+      />
+
+      {/* Architecture Diagram (shown after AI generates architecture HTML) */}
+      <ArchitectureDiagramGenerator
+        htmlCode={architectureCode}
+        captureRef={captureArchitectureRef}
+      />
 
       <RichTextEditor
         section={6}

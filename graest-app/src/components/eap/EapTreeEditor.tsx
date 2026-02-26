@@ -228,6 +228,14 @@ export function EapTreeEditor({ escopoEditor, captureRef }: EapTreeEditorProps) 
     const dataUrl = await toPng(treeRef.current, {
       backgroundColor: "#ffffff",
       pixelRatio: 2,
+      filter: (node) => {
+        // Hide "Adicionar" buttons and remove icons during capture
+        if (node instanceof HTMLElement) {
+          if (node.tagName === "BUTTON" && node.textContent?.includes("Adicionar")) return false;
+          if (node.dataset?.removeBtn === "true") return false;
+        }
+        return true;
+      },
     });
 
     const blob = await (await fetch(dataUrl)).blob();

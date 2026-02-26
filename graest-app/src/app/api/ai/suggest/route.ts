@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { AI_SECTION_PROMPTS, AI_FIELD_PROMPTS } from "@/lib/constants";
 import * as fs from "fs";
@@ -255,14 +256,101 @@ REGRAS:
         break;
     }
 
-    // 4. Call Gemini
+    // 4a. For Mermaid diagrams and architecture diagrams, use Claude (Anthropic)
+    if (fieldName === "mermaidDiagram" || fieldName === "architectureDiagram") {
+      const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      if (!anthropicKey) {
+        return NextResponse.json({ error: "ANTHROPIC_API_KEY não configurada" }, { status: 500 });
+      }
+
+      const anthropic = new Anthropic({ apiKey: anthropicKey });
+
+      // Build Claude prompt with reference image
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const claudeContent: any[] = [];
+
+      // Add reference image based on diagram type
+      const refImageName = fieldName === "architectureDiagram" ? "arquitetura.png" : "diagrama-mermaid.png";
+      const refImageLabel = fieldName === "architectureDiagram"
+        ? "A imagem acima é um EXEMPLO de diagrama de arquitetura de software de outro projeto. Gere um diagrama Mermaid com estrutura e estilo SIMILAR, adaptado ao contexto do projeto atual."
+        : "A imagem acima é um EXEMPLO de diagrama de módulos de outro projeto. Use-a como referência visual de estilo.";
+
+      const diagramPath = path.join(process.cwd(), "public", refImageName);
+      if (fs.existsSync(diagramPath)) {
+        const imageBuffer = fs.readFileSync(diagramPath);
+        claudeContent.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: "image/png",
+            data: imageBuffer.toString("base64"),
+          },
+        });
+        claudeContent.push({ type: "text", text: refImageLabel });
+      }
+
+      // Add the main prompt with context
+      let claudePrompt = userPrompt;
+      if (fieldName === "mermaidDiagram" && projectContext?.moduleNames?.length > 0) {
+        claudePrompt += `\n\nMÓDULOS DO PROJETO (use EXATAMENTE estes módulos no diagrama):\n${projectContext.moduleNames.map((m: string, i: number) => `${i + 1}. ${m}`).join("\n")}`;
+      }
+      claudeContent.push({ type: "text", text: claudePrompt });
+
+      const claudeResult = await anthropic.messages.create({
+        model: "claude-opus-4-20250514",
+        max_tokens: 4096,
+        system: "Você é um especialista em gerar código Mermaid válido e bem formatado. Gere APENAS o código solicitado, sem explicações.",
+        messages: [{ role: "user", content: claudeContent }],
+      });
+
+      const suggestion = claudeResult.content
+        .filter((b) => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+
+      const tag = fieldName === "architectureDiagram" ? "ARCHITECTURE" : "MERMAID";
+      const hasBlock = fieldName === "architectureDiagram"
+        ? suggestion.includes("[ARCHITECTURE_START]")
+        : suggestion.includes("[MERMAID_START]");
+      console.log(`[${tag} Claude] length=${suggestion.length}, hasBlock=${hasBlock}`);
+      return NextResponse.json({ suggestion });
+    }
+
+    // 4b. For everything else, use Gemini
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const maxOutputTokens = MAX_OUTPUT_TOKENS[section] ?? DEFAULT_MAX_TOKENS;
 
+    // Build parts array — text + optional reference images
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parts: any[] = [{ text: userPrompt }];
+
+    // For escopo section, include module names for the inline Mermaid block
+    if (section === 6 && action === "generate" && fieldName === "escopo") {
+      if (projectContext?.moduleNames?.length > 0) {
+        parts.push({
+          text: `\nMÓDULOS DO PROJETO (extraídos dos objetivos específicos — use EXATAMENTE estes módulos no diagrama Mermaid):\n${projectContext.moduleNames.map((m: string, i: number) => `${i + 1}. ${m}`).join("\n")}\n\nO diagrama Mermaid DEVE conter TODOS estes módulos acima, conectados entre si de forma que faça sentido arquitetural.`,
+        });
+      }
+
+      const diagramPath = path.join(process.cwd(), "public", "diagrama-mermaid.png");
+      if (fs.existsSync(diagramPath)) {
+        const imageBuffer = fs.readFileSync(diagramPath);
+        parts.push({
+          inlineData: {
+            mimeType: "image/png",
+            data: imageBuffer.toString("base64"),
+          },
+        });
+        parts.push({
+          text: "A imagem acima é um EXEMPLO de diagrama de módulos de outro projeto. Gere o código Mermaid para criar um diagrama VISUALMENTE SIMILAR a este, porém usando APENAS os módulos do PROJETO ATUAL listados acima.",
+        });
+      }
+    }
+
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      contents: [{ role: "user", parts }],
       systemInstruction: systemPrompt,
       generationConfig: {
         maxOutputTokens,
@@ -271,6 +359,16 @@ REGRAS:
     });
 
     const suggestion = result.response.text();
+    const finishReason = result.response.candidates?.[0]?.finishReason;
+
+    // Log Mermaid extraction status for debugging
+    if (section === 6) {
+      const hasMermaid = suggestion.includes("[MERMAID_START]");
+      console.log(`[Escopo AI] finishReason=${finishReason}, length=${suggestion.length}, hasMermaid=${hasMermaid}`);
+      if (!hasMermaid) {
+        console.log(`[Escopo AI] last 200 chars: ${suggestion.slice(-200)}`);
+      }
+    }
 
     return NextResponse.json({ suggestion });
   } catch (error) {

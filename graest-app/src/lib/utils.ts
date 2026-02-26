@@ -50,10 +50,10 @@ export function aiTextToHtml(text: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Bullet list item
-    if (trimmed.startsWith("- ")) {
-      flushList(); // don't flush — accumulate
-      listItems.push(trimmed.slice(2));
+    // Bullet list item (supports "- text", "*   text", "• text")
+    const bulletMatch = trimmed.match(/^[-•]\s+(.*)$/) || trimmed.match(/^\*\s{1,}(.*)$/);
+    if (bulletMatch) {
+      listItems.push(bulletMatch[1]);
       continue;
     }
 
