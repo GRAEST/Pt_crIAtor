@@ -59,7 +59,7 @@ async function loadExamples(section: number | string): Promise<string> {
 
   const files = fs.readdirSync(examplesDir).filter((f) => f.endsWith(".pdf") || f.endsWith(".txt"));
   const texts: string[] = [];
-  const charLimit = EXAMPLE_CHAR_LIMITS[section] ?? DEFAULT_EXAMPLE_LIMIT;
+  const charLimit = (typeof section === "number" ? EXAMPLE_CHAR_LIMITS[section] : undefined) ?? DEFAULT_EXAMPLE_LIMIT;
 
   for (const file of files.slice(0, 3)) {
     // Limit to 3 examples
