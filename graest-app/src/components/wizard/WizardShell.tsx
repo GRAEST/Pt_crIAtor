@@ -6,12 +6,20 @@ import { WIZARD_SECTIONS } from "@/lib/constants";
 import { WizardSidebar } from "./WizardSidebar";
 import { StepRenderer } from "./StepRenderer";
 import { Button } from "@/components/ui/Button";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Circle, Download } from "lucide-react";
 
 export function WizardShell() {
-  const { planId, currentStep, setStep, isDirty, lastSaved } = usePlanStore();
+  const { planId, currentStep, setStep, isDirty, lastSaved, completedSections, markSectionComplete, markSectionIncomplete } = usePlanStore();
   const totalSteps = WIZARD_SECTIONS.length;
   const [exporting, setExporting] = useState(false);
+
+  const currentSection = WIZARD_SECTIONS[currentStep];
+  const isCompleted = currentSection ? completedSections.includes(currentSection.number) : false;
+  const toggleComplete = () => {
+    if (!currentSection) return;
+    if (isCompleted) markSectionIncomplete(currentSection.number);
+    else markSectionComplete(currentSection.number);
+  };
 
   const handlePrev = () => {
     if (currentStep > 0) setStep(currentStep - 1);
@@ -73,6 +81,24 @@ export function WizardShell() {
                 <ChevronRight size={16} />
               </Button>
             </div>
+
+            <button
+              onClick={toggleComplete}
+              className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                isCompleted
+                  ? "bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-950/60"
+                  : "bg-gray-100 dark:bg-surface-700 text-gray-500 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-950/20 hover:text-green-600 dark:hover:text-green-400"
+              }`}
+            >
+              <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-colors ${
+                isCompleted
+                  ? "bg-green-500 text-white"
+                  : "border border-gray-300 dark:border-gray-500"
+              }`}>
+                {isCompleted ? <Check size={10} /> : <Circle size={6} className="text-transparent" />}
+              </span>
+              {isCompleted ? "Concluída" : "Marcar concluída"}
+            </button>
 
             <div className="flex items-center gap-4">
               {lastSaved && (
