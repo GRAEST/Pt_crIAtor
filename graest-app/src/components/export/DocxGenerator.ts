@@ -359,6 +359,47 @@ function buildActivitiesOoxml(activities: ActivityFormData[]): string {
 // Build raw OOXML for professionals (Section 9)
 // ---------------------------------------------------------------------------
 
+function buildProfessionalsSummaryTable(professionals: PlanFormData["professionals"]): string {
+  const border = '<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders>';
+  const fontH = '<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:b/><w:sz w:val="14"/><w:szCs w:val="14"/>';
+  const fontR = '<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:sz w:val="14"/><w:szCs w:val="14"/>';
+  const center = '<w:pPr><w:jc w:val="center"/></w:pPr>';
+
+  function cell(text: string, width: string, extra = "", ppr = "", rpr = fontR): string {
+    return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="pct"/>${border}${extra}</w:tcPr><w:p>${ppr}<w:r><w:rPr>${rpr}</w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p></w:tc>`;
+  }
+
+  // Header row
+  const headerRow = `<w:tr>${[
+    cell("", "250", "", center, fontH),
+    cell("Nome do Profissional", "1500", "", center, fontH),
+    cell("Formação Profissional", "800", "", center, fontH),
+    cell("Função no Projeto", "1700", "", center, fontH),
+    cell("Horas Mensais", "750", "", center, fontH),
+  ].join("")}</w:tr>`;
+
+  // Data rows
+  const dataRows = professionals.map((p, i) => {
+    const categoryLabel = p.category === "professor" ? "Professor Pesquisador" : p.category === "aluno" ? "Aluno Pesquisador" : "";
+    const funcao = [categoryLabel, p.roleInProject].filter(Boolean).join(" \u2013 ");
+
+    return `<w:tr>${[
+      cell(String(i + 1), "250", "", center),
+      cell(p.name || "", "1500"),
+      cell(p.degree || "", "800", "", center),
+      cell(funcao, "1700"),
+      cell("", "750", "", center),
+    ].join("")}</w:tr>`;
+  }).join("");
+
+  // Total row — merge first 4 columns, keep last separate
+  const mergeStart = '<w:gridSpan w:val="4"/>';
+  const mergeContinue = '<w:gridSpan w:val="0"/><w:vMerge/>';
+  const totalRow = `<w:tr><w:tc><w:tcPr><w:tcW w:w="4250" w:type="pct"/>${border}${mergeStart}</w:tcPr><w:p>${center}<w:r><w:rPr>${fontR}<w:b/></w:rPr><w:t xml:space="preserve">TOTAL HORAS MES</w:t></w:r></w:p></w:tc>${cell("", "750", "", center, `${fontR}<w:b/>`)}</w:tr>`;
+
+  return `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders></w:tblPr>${headerRow}${dataRows}${totalRow}</w:tbl>`;
+}
+
 function buildProfessionalsOoxml(professionals: PlanFormData["professionals"]): string {
   if (professionals.length === 0) {
     return `<w:p><w:r><w:rPr>${DEFAULT_FONT}<w:i/></w:rPr><w:t>Nenhum profissional cadastrado.</w:t></w:r></w:p>`;
@@ -368,7 +409,14 @@ function buildProfessionalsOoxml(professionals: PlanFormData["professionals"]): 
   const FONT_BOLD = `<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/>`;
   const LINE_SPACING = `<w:pPr><w:spacing w:line="276" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr>`;
 
-  const paragraphs: string[] = [];
+  // --- Summary table ---
+  const summaryTable = buildProfessionalsSummaryTable(professionals);
+
+  const paragraphs: string[] = [
+    summaryTable,
+    // Spacing between table and curricula
+    `<w:p><w:pPr><w:spacing w:after="200"/></w:pPr></w:p>`,
+  ];
 
   for (let i = 0; i < professionals.length; i++) {
     const p = professionals[i];

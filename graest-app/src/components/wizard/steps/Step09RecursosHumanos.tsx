@@ -4,9 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { usePlanStore } from "@/lib/store";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
-import { Button } from "@/components/ui/Button";
 import { HIRING_TYPES, DIRECT_INDIRECT } from "@/lib/constants";
-import { ChevronDown, ChevronUp, GraduationCap, Trash2, UserPlus, Sparkles, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, GraduationCap, Search, Trash2, UserPlus, Sparkles, Loader2 } from "lucide-react";
 import type { ProfessionalFormData, StaffMember } from "@/types/plan";
 import { jsonContentToText } from "@/lib/utils";
 import Link from "next/link";
@@ -17,10 +16,11 @@ export function Step09RecursosHumanos() {
 
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
-  const [selectedStaffId, setSelectedStaffId] = useState("");
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [generatingIndex, setGeneratingIndex] = useState<number | null>(null);
   const [generatingRoleIndex, setGeneratingRoleIndex] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   const handleGenerateRole = useCallback(async (index: number) => {
     if (generatingRoleIndex !== null) return;
@@ -132,34 +132,74 @@ export function Step09RecursosHumanos() {
       .finally(() => setLoadingStaff(false));
   }, []);
 
-  // Filter out already-added staff members from the dropdown
+  // Track which staff members are already added
   const addedStaffIds = new Set(
     professionals.filter((p) => p.staffMemberId).map((p) => p.staffMemberId)
   );
-  const availableStaff = staffMembers.filter((s) => !addedStaffIds.has(s.id));
 
-  function handleAddFromStaff() {
-    if (!selectedStaffId) return;
-    const member = staffMembers.find((s) => s.id === selectedStaffId);
-    if (!member) return;
+  // Filter staff members by search + quick filter
+  const filteredStaff = staffMembers.filter((m) => {
+    // Search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const match = m.name.toLowerCase().includes(q) ||
+        (m.degree || "").toLowerCase().includes(q) ||
+        (m.education || "").toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    // Quick filter
+    if (activeFilter === "professor") return m.category === "professor";
+    if (activeFilter === "aluno") return m.category === "aluno";
+    if (activeFilter === "doutor") {
+      const d = (m.degree || "").toLowerCase();
+      return d.includes("doutor");
+    }
+    if (activeFilter === "mestre") {
+      const d = (m.degree || "").toLowerCase();
+      return d.includes("mestr");
+    }
+    return true;
+  });
 
-    const newProfessional: ProfessionalFormData = {
-      staffMemberId: member.id,
-      orderIndex: professionals.length,
-      name: member.name,
-      category: member.category || "",
-      education: member.education || "",
-      degree: member.degree || "",
-      miniCv: member.miniCv || "",
-      roleInProject: "",
-      activityAssignment: "",
-      hiringType: "",
-      directIndirect: "",
-    };
+  const QUICK_FILTERS = [
+    { key: "professor", label: "Professores" },
+    { key: "doutor", label: "Doutores" },
+    { key: "mestre", label: "Mestres" },
+    { key: "aluno", label: "Alunos" },
+  ] as const;
 
-    updateField("professionals", [...professionals, newProfessional]);
-    setSelectedStaffId("");
-    setExpandedIndex(professionals.length); // expand the new one
+  function handleToggleStaff(staffId: string) {
+    if (addedStaffIds.has(staffId)) {
+      // Remove the professional linked to this staff member
+      const updated = professionals
+        .filter((p) => p.staffMemberId !== staffId)
+        .map((p, i) => ({ ...p, orderIndex: i }));
+      updateField("professionals", updated);
+      if (expandedIndex !== null && expandedIndex >= updated.length) {
+        setExpandedIndex(null);
+      }
+    } else {
+      // Add the staff member as a new professional
+      const member = staffMembers.find((s) => s.id === staffId);
+      if (!member) return;
+
+      const newProfessional: ProfessionalFormData = {
+        staffMemberId: member.id,
+        orderIndex: professionals.length,
+        name: member.name,
+        category: member.category || "",
+        education: member.education || "",
+        degree: member.degree || "",
+        miniCv: member.miniCv || "",
+        roleInProject: "",
+        activityAssignment: "",
+        hiringType: "",
+        directIndirect: "",
+      };
+
+      updateField("professionals", [...professionals, newProfessional]);
+      setExpandedIndex(professionals.length); // expand the new one
+    }
   }
 
   function handleRemove(index: number) {
@@ -212,55 +252,120 @@ export function Step09RecursosHumanos() {
         Selecione os profissionais cadastrados e defina suas atribuições neste projeto.
       </p>
 
-      {/* Add from staff dropdown */}
-      <div className="flex items-end gap-3">
-        <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Adicionar profissional
-          </label>
-          {loadingStaff ? (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-400">
-              Carregando...
-            </div>
-          ) : availableStaff.length === 0 && staffMembers.length > 0 ? (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-400 dark:text-gray-500">
-              Todos os profissionais já foram adicionados
-            </div>
-          ) : staffMembers.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-400 dark:text-gray-500">
-              Nenhum profissional cadastrado.{" "}
-              <Link
-                href="/staff"
-                className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
-              >
-                Cadastrar equipe
-              </Link>
-            </div>
-          ) : (
-            <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 transition-colors"
-            >
-              <option value="">Selecione um profissional...</option>
-              {availableStaff.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                  {member.category === "professor" ? " (Professor)" : member.category === "aluno" ? " (Aluno)" : ""}
-                  {member.degree ? ` — ${member.degree}` : ""}
-                </option>
-              ))}
-            </select>
+      {/* Staff toggle list */}
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <UserPlus size={14} className="inline mr-1.5 -mt-0.5" />
+          Equipe do projeto
+          {staffMembers.length > 0 && (
+            <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+              {addedStaffIds.size}/{staffMembers.length} selecionados
+            </span>
           )}
-        </div>
-        <Button
-          type="button"
-          onClick={handleAddFromStaff}
-          disabled={!selectedStaffId}
-        >
-          <UserPlus size={16} />
-          Adicionar
-        </Button>
+        </label>
+        {loadingStaff ? (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-400">
+            Carregando...
+          </div>
+        ) : staffMembers.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-surface-800 px-3 py-2.5 text-sm text-gray-400 dark:text-gray-500">
+            Nenhum profissional cadastrado.{" "}
+            <Link
+              href="/staff"
+              className="text-primary-600 dark:text-primary-400 hover:underline font-medium"
+            >
+              Cadastrar equipe
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Search + filters */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar profissional..."
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-surface-800 pl-8 pr-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-400 transition-colors"
+                />
+              </div>
+              <div className="flex gap-1">
+                {QUICK_FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setActiveFilter(activeFilter === f.key ? null : f.key)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                      activeFilter === f.key
+                        ? "bg-primary-600 dark:bg-primary-500 text-white"
+                        : "bg-gray-100 dark:bg-surface-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-surface-600"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toggle list */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden divide-y divide-gray-100 dark:divide-gray-700 max-h-64 overflow-y-auto">
+              {filteredStaff.length === 0 ? (
+                <div className="px-3 py-4 text-center text-sm text-gray-400 dark:text-gray-500">
+                  Nenhum resultado encontrado
+                </div>
+              ) : (
+                filteredStaff.map((member) => {
+                  const isAdded = addedStaffIds.has(member.id);
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => handleToggleStaff(member.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${
+                        isAdded
+                          ? "bg-primary-50 dark:bg-primary-950/30 hover:bg-primary-100 dark:hover:bg-primary-950/50"
+                          : "bg-white dark:bg-surface-800 hover:bg-gray-50 dark:hover:bg-surface-850"
+                      }`}
+                    >
+                      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                        isAdded
+                          ? "bg-primary-600 dark:bg-primary-500 border-primary-600 dark:border-primary-500"
+                          : "border-gray-300 dark:border-gray-600"
+                      }`}>
+                        {isAdded && <Check size={12} className="text-white" />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`truncate font-medium ${
+                            isAdded ? "text-gray-900 dark:text-gray-100" : "text-gray-700 dark:text-gray-300"
+                          }`}>
+                            {member.name}
+                          </span>
+                          {member.category && (
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium shrink-0 ${
+                              member.category === "professor"
+                                ? "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                                : "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                            }`}>
+                              {member.category === "professor" ? "Professor" : "Aluno"}
+                            </span>
+                          )}
+                        </div>
+                        {member.degree && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate block">
+                            {member.degree}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Professional cards */}
