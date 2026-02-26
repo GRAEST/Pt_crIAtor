@@ -484,26 +484,50 @@ function replaceProfessionalsLoopInTemplate(zip: PizZip): void {
   const docXml = zip.file("word/document.xml")?.asText();
   if (!docXml) return;
 
-  const startTag = "{#professionals}";
-  const startIdx = docXml.indexOf(startTag);
-  if (startIdx === -1) return;
+  // Strip all XML tags to get raw text — helps find split tags
+  const textOnly = docXml.replace(/<[^>]+>/g, "");
+
+  // Check if the template even has a professionals loop
+  if (!textOnly.includes("{#professionals}")) return;
+
+  // Find opening tag — may be split across runs
+  let openBraceIdx = -1;
+  {
+    let searchPos = 0;
+    while (searchPos < docXml.length) {
+      const braceHash = docXml.indexOf("{#", searchPos);
+      if (braceHash === -1) break;
+      // Look ahead in the raw XML (up to 500 chars) for "professionals" then "}"
+      const nearby = docXml.substring(braceHash, braceHash + 500);
+      const stripped = nearby.replace(/<[^>]+>/g, "");
+      if (stripped.startsWith("{#professionals}")) {
+        openBraceIdx = braceHash;
+        break;
+      }
+      searchPos = braceHash + 2;
+    }
+  }
+  if (openBraceIdx === -1) return;
 
   const pStart = Math.max(
-    docXml.lastIndexOf("<w:p ", startIdx),
-    docXml.lastIndexOf("<w:p>", startIdx)
+    docXml.lastIndexOf("<w:p ", openBraceIdx),
+    docXml.lastIndexOf("<w:p>", openBraceIdx)
   );
   if (pStart === -1) return;
 
-  let closeIdx = docXml.indexOf("{/professionals}", startIdx);
-  if (closeIdx === -1) {
-    let searchPos = startIdx;
+  // Find closing tag — may also be split across runs
+  let closeIdx = -1;
+  {
+    let searchPos = openBraceIdx + 2;
     while (searchPos < docXml.length) {
       const braceSlash = docXml.indexOf("{/", searchPos);
       if (braceSlash === -1) break;
       const nearby = docXml.substring(braceSlash, braceSlash + 500);
-      if (nearby.includes("professionals")) {
-        const profIdx = docXml.indexOf("professionals", braceSlash);
-        closeIdx = docXml.indexOf("}", profIdx);
+      const stripped = nearby.replace(/<[^>]+>/g, "");
+      if (stripped.startsWith("{/professionals}")) {
+        // Find the actual closing "}" in the XML
+        const profWord = docXml.indexOf("professionals", braceSlash);
+        closeIdx = docXml.indexOf("}", profWord);
         break;
       }
       searchPos = braceSlash + 2;
