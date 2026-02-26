@@ -63,14 +63,18 @@ export function Step09RecursosHumanos() {
       const data = await res.json();
 
       if (data.suggestion) {
-        handleUpdate(index, "roleInProject", data.suggestion.trim());
+        const current = usePlanStore.getState().formData.professionals;
+        const updated = current.map((p, i) =>
+          i === index ? { ...p, roleInProject: data.suggestion.trim() } : p
+        );
+        usePlanStore.getState().updateField("professionals", updated);
       }
     } catch (error) {
       console.error("AI role generation error:", error);
     } finally {
       setGeneratingRoleIndex(null);
     }
-  }, [generatingRoleIndex]);
+  }, []);
 
   const handleGenerateAssignment = useCallback(async (index: number) => {
     if (generatingIndex !== null) return;
@@ -117,14 +121,18 @@ export function Step09RecursosHumanos() {
       const data = await res.json();
 
       if (data.suggestion) {
-        handleUpdate(index, "activityAssignment", data.suggestion);
+        const current = usePlanStore.getState().formData.professionals;
+        const updated = current.map((p, i) =>
+          i === index ? { ...p, activityAssignment: data.suggestion } : p
+        );
+        usePlanStore.getState().updateField("professionals", updated);
       }
     } catch (error) {
       console.error("AI generation error:", error);
     } finally {
       setGeneratingIndex(null);
     }
-  }, [generatingIndex]);
+  }, []);
 
   useEffect(() => {
     fetch("/api/staff")
