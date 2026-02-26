@@ -77,6 +77,12 @@ function buildRunProps(marks?: JSONContent["marks"]): string {
   return `<w:rPr>${props.join("")}</w:rPr>`;
 }
 
+function extractPlainText(node: JSONContent): string {
+  if (node.text) return node.text;
+  if (node.content) return node.content.map(extractPlainText).join("");
+  return "";
+}
+
 function nodeToRuns(node: JSONContent): string {
   if (node.text) {
     const rPr = buildRunProps(node.marks);
@@ -176,13 +182,29 @@ function tiptapToOoxml(content: JSONContent | null): string {
 
       case "bulletList": {
         if (node.content) {
+          let isFirstModule = true;
           for (const listItem of node.content) {
             if (listItem.type === "listItem" && listItem.content) {
               for (const child of listItem.content) {
-                const runs = nodeToRuns(child);
-                paragraphs.push(
-                  `<w:p><w:pPr><w:spacing w:after="40" w:line="276" w:lineRule="auto"/><w:ind w:left="360" w:hanging="360"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">\u2022 </w:t></w:r>${runs}</w:p>`
-                );
+                // Extract plain text to detect module headers (lines ending with ":")
+                const plainText = extractPlainText(child).trim();
+                const isModuleHeader = plainText.endsWith(":");
+
+                if (isModuleHeader) {
+                  // Module header: bold, no bullet, spacing before (except first)
+                  const FONT_BOLD = `<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/>`;
+                  const spacingBefore = isFirstModule ? "0" : "200";
+                  paragraphs.push(
+                    `<w:p><w:pPr><w:spacing w:before="${spacingBefore}" w:after="40" w:line="276" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${FONT_BOLD}</w:rPr><w:t xml:space="preserve">${escapeXml(plainText)}</w:t></w:r></w:p>`
+                  );
+                  isFirstModule = false;
+                } else {
+                  // Regular item: bullet, indented under module
+                  const runs = nodeToRuns(child);
+                  paragraphs.push(
+                    `<w:p><w:pPr><w:spacing w:after="40" w:line="276" w:lineRule="auto"/><w:ind w:left="720" w:hanging="360"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t xml:space="preserve">\u2022 </w:t></w:r>${runs}</w:p>`
+                  );
+                }
               }
             }
           }
