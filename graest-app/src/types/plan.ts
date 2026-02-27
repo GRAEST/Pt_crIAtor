@@ -39,6 +39,8 @@ export interface StaffMember {
   education: string;
   degree: string;
   miniCv: string;
+  bolsaId?: string;
+  valorHora?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -68,6 +70,85 @@ export interface CronogramaCell {
   month: number;
   active: boolean;
 }
+
+// ---- Financial Data Types ----
+
+export interface EquipamentoItem {
+  nome: string;
+  atividade: string;
+  descricao: string;
+  justificativa: string;
+  seMaisDeUm: string;
+  tipo: string;
+  quantidade: number;
+  custoUnitario: number;
+}
+
+export interface RhFinanceiroItem {
+  staffMemberId?: string;
+  nome: string;
+  profissionalNome: string;
+  salarioBase: number;
+  encargosMes: number;
+  custoHora: number;
+  totalHsProjeto: number;
+}
+
+export interface OutrosSubItem {
+  descricao: string;
+  justificativa: string;
+  tipo: string;
+  quantidade: number;
+  custoUnitario: number;
+}
+
+export interface CronogramaFinanceiroMes {
+  mes: number;
+  equipamentos: number;
+  laboratorios: number;
+  rhDireto: number;
+  rhIndireto: number;
+  servicosTerceiros: number;
+  materialConsumo: number;
+  livros: number;
+  treinamentos: number;
+  viagens: number;
+  outrosDispendios: number;
+}
+
+export interface FinanceiroData {
+  config: { issPercent: number; doaPercent: number; reservaPercent: number };
+  equipamentos: EquipamentoItem[];
+  laboratorios: EquipamentoItem[];
+  rhDireto: RhFinanceiroItem[];
+  rhIndireto: RhFinanceiroItem[];
+  servicosTerceiros: EquipamentoItem[];
+  materialConsumo: EquipamentoItem[];
+  outros: {
+    livros: OutrosSubItem[];
+    treinamentos: OutrosSubItem[];
+    viagens: OutrosSubItem[];
+    outrosDispendios: OutrosSubItem[];
+  };
+  cronogramaFinanceiro: CronogramaFinanceiroMes[];
+}
+
+export const defaultFinanceiroData: FinanceiroData = {
+  config: { issPercent: 5, doaPercent: 15, reservaPercent: 5 },
+  equipamentos: [],
+  laboratorios: [],
+  rhDireto: [],
+  rhIndireto: [],
+  servicosTerceiros: [],
+  materialConsumo: [],
+  outros: {
+    livros: [],
+    treinamentos: [],
+    viagens: [],
+    outrosDispendios: [],
+  },
+  cronogramaFinanceiro: [],
+};
 
 export interface PlanFormData {
   // Cabeçalho: Logos e nomes das instituições
@@ -121,6 +202,9 @@ export interface PlanFormData {
 
   // Seção 13: Cronograma
   cronogramaOverrides: CronogramaCell[];
+
+  // Seção Financeiro
+  financeiro: FinanceiroData;
 }
 
 export const defaultPlanFormData: PlanFormData = {
@@ -162,4 +246,5 @@ export const defaultPlanFormData: PlanFormData = {
   solucao: null,
   complementares: null,
   cronogramaOverrides: [],
+  financeiro: { ...defaultFinanceiroData },
 };

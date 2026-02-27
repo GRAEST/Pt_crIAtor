@@ -8,7 +8,7 @@ const JSON_FIELDS = [
   'projectTypes', 'activityTypes', 'motivacao', 'objetivosGerais',
   'objetivosEspecificos', 'escopo', 'estrategias', 'indicators',
   'inovadoras', 'resultados', 'desafios', 'solucao', 'complementares',
-  'cronogramaOverrides', 'completedSections',
+  'cronogramaOverrides', 'completedSections', 'financeiro',
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

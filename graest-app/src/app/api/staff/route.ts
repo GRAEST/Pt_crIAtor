@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, category, education, degree, miniCv } = body;
+    const { name, category, education, degree, miniCv, bolsaId, valorHora } = body;
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
         education: education?.trim() || null,
         degree: degree?.trim() || null,
         miniCv: miniCv?.trim() || null,
+        bolsaId: bolsaId?.trim() || null,
+        valorHora: valorHora != null ? parseFloat(valorHora) : null,
       },
     });
 

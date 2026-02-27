@@ -7,7 +7,9 @@ import type {
   ProfessionalFormData,
   IndicatorData,
   CronogramaCell,
+  FinanceiroData,
 } from "@/types/plan";
+import { defaultFinanceiroData } from "@/types/plan";
 
 type RouteContext = { params: Promise<{ planId: string }> };
 
@@ -111,6 +113,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       complementares: safeParse(plan.complementares) as PlanFormData["complementares"],
       cronogramaOverrides:
         (safeParse(plan.cronogramaOverrides) as CronogramaCell[] | null) ?? [],
+      financeiro: (safeParse(plan.financeiro) as FinanceiroData | null) ?? { ...defaultFinanceiroData },
     };
 
     const buffer = await generateDocx(formData);

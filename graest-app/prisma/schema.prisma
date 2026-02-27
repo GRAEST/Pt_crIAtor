@@ -59,6 +59,9 @@ model Plan {
   // Seção 13: Cronograma overrides
   cronogramaOverrides String?
 
+  // Seção Financeiro (JSON)
+  financeiro String?
+
   // Metadado de progresso
   completedSections String?
 
@@ -108,6 +111,8 @@ model StaffMember {
   education String?
   degree    String?
   miniCv    String?
+  bolsaId   String?
+  valorHora Float?
 }
 
 model Material {

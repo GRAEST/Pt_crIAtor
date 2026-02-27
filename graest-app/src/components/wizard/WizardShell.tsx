@@ -12,6 +12,7 @@ export function WizardShell() {
   const { planId, currentStep, setStep, isDirty, lastSaved, completedSections, markSectionComplete, markSectionIncomplete } = usePlanStore();
   const totalSteps = WIZARD_SECTIONS.length;
   const [exporting, setExporting] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const currentSection = WIZARD_SECTIONS[currentStep];
   const isCompleted = currentSection ? completedSections.includes(currentSection.number) : false;
@@ -52,7 +53,7 @@ export function WizardShell() {
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
-      <WizardSidebar />
+      <WizardSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex flex-1 flex-col min-w-0">
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="mx-auto max-w-4xl">

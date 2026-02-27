@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { BolsaSelect } from "@/components/staff/BolsaSelect";
 import type { StaffMember } from "@/types/plan";
 
 export default function StaffPage() {
@@ -28,6 +29,8 @@ export default function StaffPage() {
   const [formEducation, setFormEducation] = useState("");
   const [formDegree, setFormDegree] = useState("");
   const [formMiniCv, setFormMiniCv] = useState("");
+  const [formBolsaId, setFormBolsaId] = useState("");
+  const [formValorHora, setFormValorHora] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const fetchStaff = () => {
@@ -51,6 +54,8 @@ export default function StaffPage() {
     setFormEducation("");
     setFormDegree("");
     setFormMiniCv("");
+    setFormBolsaId("");
+    setFormValorHora(null);
   };
 
   const handleNew = () => {
@@ -65,6 +70,8 @@ export default function StaffPage() {
     setFormEducation(member.education || "");
     setFormDegree(member.degree || "");
     setFormMiniCv(member.miniCv || "");
+    setFormBolsaId(member.bolsaId || "");
+    setFormValorHora(member.valorHora ?? null);
     setShowForm(true);
   };
 
@@ -93,6 +100,8 @@ export default function StaffPage() {
         education: formEducation.trim(),
         degree: formDegree.trim(),
         miniCv: formMiniCv.trim(),
+        bolsaId: formBolsaId || null,
+        valorHora: formValorHora,
       };
 
       if (editingId) {
@@ -172,9 +181,18 @@ export default function StaffPage() {
                 >
                   <option value="">Selecione...</option>
                   <option value="professor">Professor Pesquisador</option>
+                  <option value="servidor">Servidor Público</option>
                   <option value="aluno">Aluno Pesquisador</option>
                 </select>
               </div>
+
+              <BolsaSelect
+                value={formBolsaId}
+                onChange={(id, valor) => {
+                  setFormBolsaId(id);
+                  setFormValorHora(valor);
+                }}
+              />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Input
@@ -247,9 +265,16 @@ export default function StaffPage() {
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                           member.category === "professor"
                             ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                            : member.category === "servidor"
+                            ? "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300"
                             : "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300"
                         }`}>
-                          {member.category === "professor" ? "Professor Pesquisador" : "Aluno Pesquisador"}
+                          {member.category === "professor" ? "Professor Pesquisador" : member.category === "servidor" ? "Servidor Público" : "Aluno Pesquisador"}
+                        </span>
+                      )}
+                      {member.valorHora != null && (
+                        <span className="inline-flex items-center rounded-full bg-green-50 dark:bg-green-950/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300">
+                          R$ {member.valorHora.toFixed(2)}/h
                         </span>
                       )}
                     </div>

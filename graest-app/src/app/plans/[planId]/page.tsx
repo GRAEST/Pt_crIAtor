@@ -80,6 +80,7 @@ function apiResponseToFormData(plan: any): PlanFormData {
     solucao: plan.solucao ?? null,
     complementares: plan.complementares ?? null,
     cronogramaOverrides: plan.cronogramaOverrides ?? [],
+    financeiro: plan.financeiro ?? { ...defaultPlanFormData.financeiro },
   };
 }
 
@@ -143,6 +144,7 @@ function formDataToApiPayload(data: PlanFormData): Record<string, any> {
     complementares: data.complementares,
     cronogramaOverrides:
       data.cronogramaOverrides.length > 0 ? data.cronogramaOverrides : null,
+    financeiro: data.financeiro,
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
