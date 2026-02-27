@@ -84,16 +84,15 @@ export function RhTable({ items, onChange, title, description, directIndirect }:
     syncItems();
   }, [syncItems]);
 
-  // Fetch valorHora for items that have staffMemberId but custoHora === 0
+  // Fetch valorHora for all items with staffMemberId — runs when items change
+  const itemIds = items.map((it) => it.staffMemberId).filter(Boolean).join(",");
   useEffect(() => {
     let cancelled = false;
-    const itemsNeedingFetch = items.filter(
-      (it) => it.staffMemberId && it.custoHora === 0
-    );
-    if (itemsNeedingFetch.length === 0) return;
+    const itemsToFetch = items.filter((it) => it.staffMemberId);
+    if (itemsToFetch.length === 0) return;
 
     Promise.all(
-      itemsNeedingFetch.map(async (it) => {
+      itemsToFetch.map(async (it) => {
         try {
           const res = await fetch(`/api/staff/${it.staffMemberId}`);
           if (res.ok) {
@@ -108,16 +107,15 @@ export function RhTable({ items, onChange, title, description, directIndirect }:
       const valorMap = new Map(results.map((r) => [r.staffMemberId, r.valorHora]));
       let anyChanged = false;
       const updated = items.map((item) => {
-        if (item.custoHora === 0 && valorMap.has(item.staffMemberId)) {
-          const vh = valorMap.get(item.staffMemberId)!;
-          if (vh > 0) {
-            anyChanged = true;
-            const totalHs =
-              vh > 0 && projectMonths > 0 && item.salarioBase > 0
-                ? (item.salarioBase * projectMonths) / vh
-                : 0;
-            return { ...item, custoHora: vh, totalHsProjeto: totalHs };
-          }
+        if (!valorMap.has(item.staffMemberId)) return item;
+        const vh = valorMap.get(item.staffMemberId)!;
+        if (vh > 0 && vh !== item.custoHora) {
+          anyChanged = true;
+          const totalHs =
+            projectMonths > 0 && item.salarioBase > 0
+              ? (item.salarioBase * projectMonths) / vh
+              : 0;
+          return { ...item, custoHora: vh, totalHsProjeto: totalHs };
         }
         return item;
       });
@@ -126,16 +124,39 @@ export function RhTable({ items, onChange, title, description, directIndirect }:
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length]);
+  }, [itemIds]);
+
+  // Recalculate totalHsProjeto whenever projectMonths changes
+  useEffect(() => {
+    if (projectMonths <= 0) return;
+    let anyChanged = false;
+    const updated = items.map((item) => {
+      const custoHora = item.custoHora || 0;
+      if (custoHora > 0 && item.salarioBase > 0) {
+        const newTotal = (item.salarioBase * projectMonths) / custoHora;
+        if (Math.abs(newTotal - (item.totalHsProjeto || 0)) > 0.01) {
+          anyChanged = true;
+          return { ...item, totalHsProjeto: newTotal };
+        }
+      }
+      return item;
+    });
+    if (anyChanged) onChange(updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectMonths]);
+
+  const recalcHoras = (item: RhFinanceiroItem, salarioBase: number, custoHora: number): number => {
+    if (custoHora > 0 && projectMonths > 0 && salarioBase > 0) {
+      return (salarioBase * projectMonths) / custoHora;
+    }
+    return 0;
+  };
 
   const updateSalarioBase = (idx: number, salarioBase: number) => {
     const updated = items.map((item, i) => {
       if (i !== idx) return item;
       const custoHora = item.custoHora || 0;
-      const totalHs =
-        custoHora > 0 && projectMonths > 0
-          ? (salarioBase * projectMonths) / custoHora
-          : item.totalHsProjeto;
+      const totalHs = recalcHoras(item, salarioBase, custoHora);
       return { ...item, salarioBase, encargosMes: 0, totalHsProjeto: totalHs };
     });
     onChange(updated);
@@ -260,8 +281,15 @@ export function RhTable({ items, onChange, title, description, directIndirect }:
                         <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                           Custo/Hora (R$)
                         </label>
-                        <div className="px-2.5 py-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-surface-900 rounded border border-gray-200 dark:border-gray-700">
-                          {(item.custoHora || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        <div className={`px-2.5 py-1.5 text-sm font-medium bg-gray-50 dark:bg-surface-900 rounded border min-h-[32px] ${
+                          item.custoHora > 0
+                            ? "text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+                            : "text-amber-500 dark:text-amber-400 border-amber-300 dark:border-amber-600"
+                        }`}>
+                          {item.custoHora > 0
+                            ? (item.custoHora).toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+                            : "Definir na Equipe"
+                          }
                         </div>
                       </div>
                       <div>

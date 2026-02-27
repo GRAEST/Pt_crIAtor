@@ -2,7 +2,8 @@ import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import * as fs from "fs";
 import * as path from "path";
-import type { PlanFormData } from "@/types/plan";
+import type { PlanFormData, FinanceiroData, EquipamentoItem, RhFinanceiroItem, OutrosSubItem, CronogramaFinanceiroMes } from "@/types/plan";
+import { defaultFinanceiroData } from "@/types/plan";
 import {
   INDICATORS,
   TRL_LEVELS,
@@ -10,6 +11,7 @@ import {
   DIRECT_INDIRECT,
 } from "@/lib/constants";
 import { formatBRL } from "@/lib/utils";
+import { numberToWordsBRL } from "@/lib/numberToWords";
 
 // ---------------------------------------------------------------------------
 // JSONContent type (matches TipTap structure)
@@ -683,6 +685,650 @@ function buildCronogramaOoxml(activities: ActivityFormData[], overrides: import(
 }
 
 // ---------------------------------------------------------------------------
+// Financial table helpers
+// ---------------------------------------------------------------------------
+
+const FIN_BORDER = '<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tcBorders>';
+const FIN_HEADER_SHADING = '<w:shd w:val="clear" w:color="auto" w:fill="808080"/>';
+const FIN_TOTAL_SHADING = '<w:shd w:val="clear" w:color="auto" w:fill="D9D9D9"/>';
+const FIN_SUBTOTAL_SHADING = '<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>';
+const FIN_FONT_SM = '<w:rFonts w:ascii="Verdana" w:hAnsi="Verdana" w:cs="Verdana"/><w:sz w:val="18"/><w:szCs w:val="18"/>';
+const FIN_FONT_SM_BOLD = `${FIN_FONT_SM}<w:b/>`;
+const FIN_FONT_SM_BOLD_WHITE = `${FIN_FONT_SM}<w:b/><w:color w:val="FFFFFF"/>`;
+
+const NAO_SE_APLICA = `<w:p><w:pPr><w:spacing w:after="100"/></w:pPr><w:r><w:rPr>${DEFAULT_FONT}<w:i/></w:rPr><w:t>N\u00E3o se aplica.</w:t></w:r></w:p>`;
+
+const TBL_PROPS = '<w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/></w:tblBorders></w:tblPr>';
+
+function fmtBrl(v: number): string {
+  return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function fmtPct(v: number): string {
+  return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+function finCell(text: string, shading = "", align = "left", bold = false): string {
+  const isHeader = shading === FIN_HEADER_SHADING;
+  const font = isHeader ? FIN_FONT_SM_BOLD_WHITE : (bold ? FIN_FONT_SM_BOLD : FIN_FONT_SM);
+  return `<w:tc><w:tcPr>${FIN_BORDER}${shading}</w:tcPr><w:p><w:pPr><w:jc w:val="${align}"/></w:pPr><w:r><w:rPr>${font}</w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p></w:tc>`;
+}
+
+function finRow(cells: string): string {
+  return `<w:tr>${cells}</w:tr>`;
+}
+
+function calcProjectMonths(startDate: string, endDate: string): number {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  return Math.max(months, 0);
+}
+
+function sumEquipItems(items: EquipamentoItem[]): number {
+  return items.reduce((s, i) => s + (i.quantidade || 0) * (i.custoUnitario || 0), 0);
+}
+
+function sumRhItems(items: RhFinanceiroItem[], projectMonths: number): number {
+  return items.reduce((s, i) => s + ((i.salarioBase || 0) + (i.encargosMes || 0)) * projectMonths, 0);
+}
+
+function sumOutrosItems(items: OutrosSubItem[]): number {
+  return items.reduce((s, i) => s + (i.quantidade || 0) * (i.custoUnitario || 0), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Budget summary table (Orcamento Resumo)
+// ---------------------------------------------------------------------------
+
+function buildOrcamentoResumoOoxml(fin: FinanceiroData, projectMonths: number): string {
+  const equipTotal = sumEquipItems(fin.equipamentos);
+  const labTotal = sumEquipItems(fin.laboratorios);
+  const rhDiretoTotal = sumRhItems(fin.rhDireto, projectMonths);
+  const rhIndiretoTotal = sumRhItems(fin.rhIndireto, projectMonths);
+  const stTotal = sumEquipItems(fin.servicosTerceiros);
+  const mcTotal = sumEquipItems(fin.materialConsumo);
+  const livrosTotal = sumOutrosItems(fin.outros.livros);
+  const treinTotal = sumOutrosItems(fin.outros.treinamentos);
+  const viagensTotal = sumOutrosItems(fin.outros.viagens);
+  const outrosTotal = sumOutrosItems(fin.outros.outrosDispendios);
+
+  const subtotalDireto = equipTotal + labTotal + rhDiretoTotal + rhIndiretoTotal + stTotal + mcTotal + livrosTotal + treinTotal + viagensTotal + outrosTotal;
+
+  const issP = (fin.config.issPercent || 0) / 100;
+  const doaP = (fin.config.doaPercent || 0) / 100;
+  const reservaP = (fin.config.reservaPercent || 0) / 100;
+  const divisor = 1 - issP - doaP - reservaP;
+  const total = divisor > 0 ? subtotalDireto / divisor : subtotalDireto;
+  const issVal = total * issP;
+  const doaVal = total * doaP;
+  const reservaVal = total * reservaP;
+
+  const pctOf = (v: number) => total > 0 ? fmtPct((v / total) * 100) : "0,00%";
+
+  // Header row
+  const headerRow = finRow(
+    finCell("DESPESAS DO PROJETO", FIN_HEADER_SHADING, "left", true) +
+    finCell("VALOR (R$)", FIN_HEADER_SHADING, "right", true) +
+    finCell("%", FIN_HEADER_SHADING, "center", true)
+  );
+
+  const rows: string[] = [headerRow];
+  const addRow = (label: string, value: number, shading = "") => {
+    rows.push(finRow(
+      finCell(label, shading) +
+      finCell(fmtBrl(value), shading, "right") +
+      finCell(pctOf(value), shading, "center")
+    ));
+  };
+  const addBoldRow = (label: string, value: number, shading: string) => {
+    rows.push(finRow(
+      finCell(label, shading, "left", true) +
+      finCell(fmtBrl(value), shading, "right", true) +
+      finCell(pctOf(value), shading, "center", true)
+    ));
+  };
+
+  addRow("I - programas de computador, maquinas, equipamentos, aparelhos e instrumentos, seus acessorios, sobressalentes e ferramentas, e servicos de instalacao dessas maquinas e equipamentos utilizados na execucao do projeto;", equipTotal);
+  addRow("II - aquisicao, implantacao, ampliacao ou modernizacao de infraestrutura fisica e de laboratorios de pesquisa, desenvolvimento e inovacao e de ICTs;", labTotal);
+  addRow("III - RH diretos envolvidos na execucao do projeto", rhDiretoTotal);
+  addRow("III - RH indiretos envolvidos na execucao do projeto", rhIndiretoTotal);
+  addRow("IV - Servicos Tecnicos de Terceiros;", stTotal);
+  addRow("V - Mat. Consumo", mcTotal);
+  addBoldRow("Total Dispendios (I a V)", equipTotal + labTotal + rhDiretoTotal + rhIndiretoTotal + stTotal + mcTotal, FIN_SUBTOTAL_SHADING);
+
+  const viSubtotal = livrosTotal + treinTotal + viagensTotal + issVal + outrosTotal;
+  addRow("VI - Outros dispendios correlatos as atividades de pesquisa, desenvolvimento e inovacao.", viSubtotal);
+  addRow("Livros e Periodicos", livrosTotal);
+  addRow("Treinamentos", treinTotal);
+  addRow("Viagens", viagensTotal);
+  addRow("ISS", issVal);
+  addRow("Outros(Aluguel, Internet, Telefonia, Impostos Etc.)", outrosTotal);
+  addBoldRow("Total Dispendios (I a VI)", subtotalDireto + issVal, FIN_SUBTOTAL_SHADING);
+
+  addRow("DOA (Despesas operacionais e Administrativas)", doaVal);
+  addRow("Constituicao de Reserva", reservaVal);
+  addBoldRow("Total", total, FIN_TOTAL_SHADING);
+
+  return `<w:tbl>${TBL_PROPS}${rows.join("")}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// Equipment-type table (Equipamentos, Laboratorios, Servicos, Material)
+// ---------------------------------------------------------------------------
+
+function buildEquipTableOoxml(items: EquipamentoItem[]): string {
+  const filtered = items.filter(i => i.nome || i.quantidade > 0 || i.custoUnitario > 0);
+  if (filtered.length === 0) return NAO_SE_APLICA;
+
+  const headerRow = finRow(
+    finCell("Nome", FIN_HEADER_SHADING, "left", true) +
+    finCell("Atividade", FIN_HEADER_SHADING, "left", true) +
+    finCell("Tipo", FIN_HEADER_SHADING, "center", true) +
+    finCell("Qtd", FIN_HEADER_SHADING, "center", true) +
+    finCell("Custo Unit.", FIN_HEADER_SHADING, "right", true) +
+    finCell("Total", FIN_HEADER_SHADING, "right", true)
+  );
+
+  let grandTotal = 0;
+  const dataRows = filtered.map(item => {
+    const total = (item.quantidade || 0) * (item.custoUnitario || 0);
+    grandTotal += total;
+    return finRow(
+      finCell(item.nome || "") +
+      finCell(item.atividade || "") +
+      finCell(item.tipo || "", "", "center") +
+      finCell(String(item.quantidade || 0), "", "center") +
+      finCell(fmtBrl(item.custoUnitario || 0), "", "right") +
+      finCell(fmtBrl(total), "", "right")
+    );
+  });
+
+  const totalRow = finRow(
+    finCell("Total", FIN_TOTAL_SHADING, "left", true) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell(fmtBrl(grandTotal), FIN_TOTAL_SHADING, "right", true)
+  );
+
+  return `<w:tbl>${TBL_PROPS}${headerRow}${dataRows.join("")}${totalRow}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// RH table (RH Direto, RH Indireto)
+// ---------------------------------------------------------------------------
+
+function buildRhTableOoxml(items: RhFinanceiroItem[], projectMonths: number): string {
+  const filtered = items.filter(i => i.nome || i.salarioBase > 0);
+  if (filtered.length === 0) return NAO_SE_APLICA;
+
+  const headerRow = finRow(
+    finCell("Funcao", FIN_HEADER_SHADING, "left", true) +
+    finCell("Salario Base", FIN_HEADER_SHADING, "right", true) +
+    finCell("Encargos/Mes", FIN_HEADER_SHADING, "right", true) +
+    finCell("Total/Mes", FIN_HEADER_SHADING, "right", true) +
+    finCell("Custo/Hora", FIN_HEADER_SHADING, "right", true) +
+    finCell("Total Horas", FIN_HEADER_SHADING, "right", true) +
+    finCell("Custo Total", FIN_HEADER_SHADING, "right", true)
+  );
+
+  let grandTotal = 0;
+  const dataRows = filtered.map(item => {
+    const totalMes = (item.salarioBase || 0) + (item.encargosMes || 0);
+    const custoTotal = totalMes * projectMonths;
+    grandTotal += custoTotal;
+    return finRow(
+      finCell(item.profissionalNome || "") +
+      finCell(fmtBrl(item.salarioBase || 0), "", "right") +
+      finCell(fmtBrl(item.encargosMes || 0), "", "right") +
+      finCell(fmtBrl(totalMes), "", "right") +
+      finCell(fmtBrl(item.custoHora || 0), "", "right") +
+      finCell((item.totalHsProjeto || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }), "", "right") +
+      finCell(fmtBrl(custoTotal), "", "right")
+    );
+  });
+
+  const totalRow = finRow(
+    finCell("Total", FIN_TOTAL_SHADING, "left", true) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell(fmtBrl(grandTotal), FIN_TOTAL_SHADING, "right", true)
+  );
+
+  return `<w:tbl>${TBL_PROPS}${headerRow}${dataRows.join("")}${totalRow}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// Outros table (Livros, Treinamentos, Viagens, Outros Dispendios)
+// ---------------------------------------------------------------------------
+
+function buildOutrosTableOoxml(items: OutrosSubItem[]): string {
+  const filtered = items.filter(i => i.descricao || i.quantidade > 0 || i.custoUnitario > 0);
+  if (filtered.length === 0) return NAO_SE_APLICA;
+
+  const headerRow = finRow(
+    finCell("Descricao", FIN_HEADER_SHADING, "left", true) +
+    finCell("Tipo", FIN_HEADER_SHADING, "center", true) +
+    finCell("Qtd", FIN_HEADER_SHADING, "center", true) +
+    finCell("Custo Unit.", FIN_HEADER_SHADING, "right", true) +
+    finCell("Total", FIN_HEADER_SHADING, "right", true)
+  );
+
+  let grandTotal = 0;
+  const dataRows = filtered.map(item => {
+    const total = (item.quantidade || 0) * (item.custoUnitario || 0);
+    grandTotal += total;
+    return finRow(
+      finCell(item.descricao || "") +
+      finCell(item.tipo || "", "", "center") +
+      finCell(String(item.quantidade || 0), "", "center") +
+      finCell(fmtBrl(item.custoUnitario || 0), "", "right") +
+      finCell(fmtBrl(total), "", "right")
+    );
+  });
+
+  const totalRow = finRow(
+    finCell("Total", FIN_TOTAL_SHADING, "left", true) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell(fmtBrl(grandTotal), FIN_TOTAL_SHADING, "right", true)
+  );
+
+  return `<w:tbl>${TBL_PROPS}${headerRow}${dataRows.join("")}${totalRow}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// Cronograma Financeiro (monthly distribution table)
+// ---------------------------------------------------------------------------
+
+function buildCronogramaFinanceiroOoxml(fin: FinanceiroData, projectMonths: number): string {
+  if (projectMonths <= 0) return NAO_SE_APLICA;
+  const config = fin.config;
+  const cronograma = fin.cronogramaFinanceiro || [];
+  const issP = (config.issPercent || 0) / 100;
+  const doaP = (config.doaPercent || 0) / 100;
+  const reservaP = (config.reservaPercent || 0) / 100;
+
+  const getMes = (m: number): CronogramaFinanceiroMes => {
+    return cronograma.find(c => c.mes === m) || {
+      mes: m, equipamentos: 0, laboratorios: 0, rhDireto: 0, rhIndireto: 0,
+      servicosTerceiros: 0, materialConsumo: 0, livros: 0, treinamentos: 0,
+      viagens: 0, outrosDispendios: 0
+    };
+  };
+
+  // Category labels
+  const categories = [
+    { key: "equipamentos", label: "I - Equipamentos" },
+    { key: "laboratorios", label: "II - Laboratorios" },
+    { key: "rhDireto", label: "III - RH Diretos" },
+    { key: "rhIndireto", label: "III - RH Indiretos" },
+    { key: "servicosTerceiros", label: "IV - Servicos de Terceiros" },
+    { key: "materialConsumo", label: "V - Mat. Consumo" },
+  ];
+  const catVI = [
+    { key: "livros", label: "Livros e Periodicos" },
+    { key: "treinamentos", label: "Treinamentos" },
+    { key: "viagens", label: "Viagens" },
+    { key: "outrosDispendios", label: "Outros" },
+  ];
+
+  // Header: Category | Valor | % | Mes-1..Mes-N | Total Distrib. | Check
+  const monthHeaders = Array.from({ length: projectMonths }, (_, i) => finCell(`Mes-${i + 1}`, FIN_HEADER_SHADING, "center", true));
+
+  const headerRow = finRow(
+    finCell("DESPESAS DO PROJETO", FIN_HEADER_SHADING, "left", true) +
+    finCell("VALOR (R$)", FIN_HEADER_SHADING, "right", true) +
+    finCell("%", FIN_HEADER_SHADING, "center", true) +
+    monthHeaders.join("") +
+    finCell("Total Distrib.", FIN_HEADER_SHADING, "right", true) +
+    finCell("Check", FIN_HEADER_SHADING, "right", true)
+  );
+
+  // Calculate category totals
+  const equipTotal = sumEquipItems(fin.equipamentos);
+  const labTotal = sumEquipItems(fin.laboratorios);
+  const rhDiretoTotal = sumRhItems(fin.rhDireto, projectMonths);
+  const rhIndiretoTotal = sumRhItems(fin.rhIndireto, projectMonths);
+  const stTotal = sumEquipItems(fin.servicosTerceiros);
+  const mcTotal = sumEquipItems(fin.materialConsumo);
+  const livrosTotal = sumOutrosItems(fin.outros.livros);
+  const treinTotal = sumOutrosItems(fin.outros.treinamentos);
+  const viagensTotal = sumOutrosItems(fin.outros.viagens);
+  const outrosTotal = sumOutrosItems(fin.outros.outrosDispendios);
+
+  const subtotalIV = equipTotal + labTotal + rhDiretoTotal + rhIndiretoTotal + stTotal + mcTotal;
+  const divisor = 1 - issP - doaP - reservaP;
+  const grandTotal = divisor > 0 ? (subtotalIV + livrosTotal + treinTotal + viagensTotal + outrosTotal) / divisor : 0;
+  const issVal = grandTotal * issP;
+  const doaVal = grandTotal * doaP;
+  const reservaVal = grandTotal * reservaP;
+  const pctOf = (v: number) => grandTotal > 0 ? fmtPct((v / grandTotal) * 100) : "0,00%";
+
+  const catTotals: Record<string, number> = {
+    equipamentos: equipTotal, laboratorios: labTotal,
+    rhDireto: rhDiretoTotal, rhIndireto: rhIndiretoTotal,
+    servicosTerceiros: stTotal, materialConsumo: mcTotal,
+    livros: livrosTotal, treinamentos: treinTotal,
+    viagens: viagensTotal, outrosDispendios: outrosTotal,
+  };
+
+  // Build category row
+  const buildCatRow = (label: string, key: string, value: number) => {
+    let distribTotal = 0;
+    const monthCells = Array.from({ length: projectMonths }, (_, i) => {
+      const mesData = getMes(i + 1);
+      const v = (mesData as unknown as Record<string, number>)[key] || 0;
+      distribTotal += v;
+      return finCell(v > 0 ? fmtBrl(v) : "", "", "right");
+    });
+    const check = value - distribTotal;
+    return finRow(
+      finCell(label) +
+      finCell(fmtBrl(value), "", "right") +
+      finCell(pctOf(value), "", "center") +
+      monthCells.join("") +
+      finCell(fmtBrl(distribTotal), "", "right") +
+      finCell(fmtBrl(check), "", "right")
+    );
+  };
+
+  const rows: string[] = [headerRow];
+
+  // Categories I-V
+  for (const cat of categories) {
+    rows.push(buildCatRow(cat.label, cat.key, catTotals[cat.key]));
+  }
+
+  // Total I-V subtotal row
+  const subtotalIVRow = (() => {
+    let distribTotal = 0;
+    const monthCells = Array.from({ length: projectMonths }, (_, i) => {
+      const m = getMes(i + 1);
+      const v = (m.equipamentos || 0) + (m.laboratorios || 0) + (m.rhDireto || 0) + (m.rhIndireto || 0) + (m.servicosTerceiros || 0) + (m.materialConsumo || 0);
+      distribTotal += v;
+      return finCell(v > 0 ? fmtBrl(v) : "", FIN_SUBTOTAL_SHADING, "right", true);
+    });
+    return finRow(
+      finCell("Total Dispendios (I a V)", FIN_SUBTOTAL_SHADING, "left", true) +
+      finCell(fmtBrl(subtotalIV), FIN_SUBTOTAL_SHADING, "right", true) +
+      finCell(pctOf(subtotalIV), FIN_SUBTOTAL_SHADING, "center", true) +
+      monthCells.join("") +
+      finCell(fmtBrl(distribTotal), FIN_SUBTOTAL_SHADING, "right", true) +
+      finCell("", FIN_SUBTOTAL_SHADING)
+    );
+  })();
+  rows.push(subtotalIVRow);
+
+  // VI categories
+  const viTotal = livrosTotal + treinTotal + viagensTotal + issVal + outrosTotal;
+  rows.push(finRow(
+    finCell("VI - Outros dispendios", "", "left") +
+    finCell(fmtBrl(viTotal), "", "right") +
+    finCell(pctOf(viTotal), "", "center") +
+    Array.from({ length: projectMonths }, () => finCell("", "")).join("") +
+    finCell("", "") + finCell("", "")
+  ));
+
+  for (const cat of catVI) {
+    rows.push(buildCatRow(cat.label, cat.key, catTotals[cat.key]));
+  }
+  // ISS row
+  rows.push(finRow(
+    finCell("ISS") +
+    finCell(fmtBrl(issVal), "", "right") +
+    finCell(fmtPct(fin.config.issPercent || 0), "", "center") +
+    Array.from({ length: projectMonths }, () => finCell("", "")).join("") +
+    finCell("", "") + finCell("", "")
+  ));
+
+  // Total I-VI
+  const totalIVI = subtotalIV + viTotal;
+  rows.push(finRow(
+    finCell("Total Dispendios (I a VI)", FIN_SUBTOTAL_SHADING, "left", true) +
+    finCell(fmtBrl(totalIVI), FIN_SUBTOTAL_SHADING, "right", true) +
+    finCell(pctOf(totalIVI), FIN_SUBTOTAL_SHADING, "center", true) +
+    Array.from({ length: projectMonths }, () => finCell("", FIN_SUBTOTAL_SHADING)).join("") +
+    finCell("", FIN_SUBTOTAL_SHADING) + finCell("", FIN_SUBTOTAL_SHADING)
+  ));
+
+  // DOA
+  rows.push(finRow(
+    finCell("DOA (Despesas operacionais e Administrativas)") +
+    finCell(fmtBrl(doaVal), "", "right") +
+    finCell(fmtPct(fin.config.doaPercent || 0), "", "center") +
+    Array.from({ length: projectMonths }, () => finCell("", "")).join("") +
+    finCell("", "") + finCell("", "")
+  ));
+
+  // Reserva
+  rows.push(finRow(
+    finCell("Constituicao de Reserva") +
+    finCell(fmtBrl(reservaVal), "", "right") +
+    finCell(fmtPct(fin.config.reservaPercent || 0), "", "center") +
+    Array.from({ length: projectMonths }, () => finCell("", "")).join("") +
+    finCell("", "") + finCell("", "")
+  ));
+
+  // Total
+  rows.push(finRow(
+    finCell("Total", FIN_TOTAL_SHADING, "left", true) +
+    finCell(fmtBrl(grandTotal), FIN_TOTAL_SHADING, "right", true) +
+    finCell("100%", FIN_TOTAL_SHADING, "center", true) +
+    Array.from({ length: projectMonths }, () => finCell("", FIN_TOTAL_SHADING)).join("") +
+    finCell("", FIN_TOTAL_SHADING) + finCell("", FIN_TOTAL_SHADING)
+  ));
+
+  return `<w:tbl>${TBL_PROPS}${rows.join("")}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// Desembolso Fisico Financeiro (payment schedule)
+// ---------------------------------------------------------------------------
+
+function buildDesembolsoOoxml(fin: FinanceiroData, projectMonths: number, executionStartDate: string): string {
+  if (projectMonths <= 0) return NAO_SE_APLICA;
+  const config = fin.config;
+  const issP = (config.issPercent || 0) / 100;
+  const doaP = (config.doaPercent || 0) / 100;
+  const reservaP = (config.reservaPercent || 0) / 100;
+
+  const cronograma = fin.cronogramaFinanceiro || [];
+
+  const startDate = executionStartDate ? new Date(executionStartDate) : new Date();
+  const monthNames = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+  // Header
+  const headerRow = finRow(
+    finCell("Referencia", FIN_HEADER_SHADING, "center", true) +
+    finCell("Mes", FIN_HEADER_SHADING, "center", true) +
+    finCell("Valor Bruto da Nota", FIN_HEADER_SHADING, "right", true) +
+    finCell(`Valor do Imposto ${fmtPct(fin.config.issPercent || 0)}`, FIN_HEADER_SHADING, "right", true) +
+    finCell("Valor Liquido da Nota", FIN_HEADER_SHADING, "right", true) +
+    finCell(`Valor DOA ${fmtPct(fin.config.doaPercent || 0)}`, FIN_HEADER_SHADING, "right", true) +
+    finCell(`Valor FCR ${fmtPct(fin.config.reservaPercent || 0)}`, FIN_HEADER_SHADING, "right", true) +
+    finCell("Valor Liquido A Executar no Projeto", FIN_HEADER_SHADING, "right", true)
+  );
+
+  let totalBruto = 0, totalIss = 0, totalLiquido = 0, totalDoa = 0, totalFcr = 0, totalExecutar = 0;
+  const dataRows: string[] = [];
+
+  for (let i = 0; i < projectMonths; i++) {
+    const mesData = cronograma.find(c => c.mes === i + 1);
+    const mesDate = new Date(startDate.getFullYear(), startDate.getMonth() + i, 1);
+    const mesLabel = `${monthNames[mesDate.getMonth()]}${String(mesDate.getFullYear()).slice(2)}`;
+
+    // Sum all categories for this month
+    let monthSum = 0;
+    if (mesData) {
+      monthSum = (mesData.equipamentos || 0) + (mesData.laboratorios || 0) +
+        (mesData.rhDireto || 0) + (mesData.rhIndireto || 0) +
+        (mesData.servicosTerceiros || 0) + (mesData.materialConsumo || 0) +
+        (mesData.livros || 0) + (mesData.treinamentos || 0) +
+        (mesData.viagens || 0) + (mesData.outrosDispendios || 0);
+    }
+
+    // Calculate values like the Excel sheet
+    const divisorM = 1 - issP - doaP - reservaP;
+    const bruto = divisorM > 0 ? monthSum / divisorM : monthSum;
+    const iss = bruto * issP;
+    const liquido = bruto - iss;
+    const doa = bruto * doaP;
+    const fcr = bruto * reservaP;
+    const executar = liquido - doa - fcr;
+
+    totalBruto += bruto;
+    totalIss += iss;
+    totalLiquido += liquido;
+    totalDoa += doa;
+    totalFcr += fcr;
+    totalExecutar += executar;
+
+    dataRows.push(finRow(
+      finCell(`Parcela ${i + 1}`, "", "center") +
+      finCell(mesLabel, "", "center") +
+      finCell(fmtBrl(bruto), "", "right") +
+      finCell(fmtBrl(iss), "", "right") +
+      finCell(fmtBrl(liquido), "", "right") +
+      finCell(fmtBrl(doa), "", "right") +
+      finCell(fmtBrl(fcr), "", "right") +
+      finCell(fmtBrl(executar), "", "right")
+    ));
+  }
+
+  // Total row
+  const totalRowStr = finRow(
+    finCell("TOTAL", FIN_TOTAL_SHADING, "center", true) +
+    finCell("", FIN_TOTAL_SHADING) +
+    finCell(fmtBrl(totalBruto), FIN_TOTAL_SHADING, "right", true) +
+    finCell(fmtBrl(totalIss), FIN_TOTAL_SHADING, "right", true) +
+    finCell(fmtBrl(totalLiquido), FIN_TOTAL_SHADING, "right", true) +
+    finCell(fmtBrl(totalDoa), FIN_TOTAL_SHADING, "right", true) +
+    finCell(fmtBrl(totalFcr), FIN_TOTAL_SHADING, "right", true) +
+    finCell(fmtBrl(totalExecutar), FIN_TOTAL_SHADING, "right", true)
+  );
+
+  // Title
+  const title = `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="100"/></w:pPr><w:r><w:rPr>${FIN_FONT_SM_BOLD}</w:rPr><w:t>DESEMBOLSO FISICO FINANCEIRO</w:t></w:r></w:p>`;
+
+  return `${title}<w:tbl>${TBL_PROPS}${headerRow}${dataRows.join("")}${totalRowStr}</w:tbl>`;
+}
+
+// ---------------------------------------------------------------------------
+// Pre-process: replace {TABELA_*} tags with raw OOXML placeholders
+// ---------------------------------------------------------------------------
+
+const FINANCEIRO_TAGS = [
+  "TABELA_ORCAMENTO_RESUMO", "TABELA_EQUIPAMENTOS", "TABELA_LABORATORIOS",
+  "TABELA_RH_DIRETO", "TABELA_RH_INDIRETO", "TABELA_SERVICOS_TERCEIROS",
+  "TABELA_MATERIAL_CONSUMO", "TABELA_LIVROS", "TABELA_TREINAMENTOS",
+  "TABELA_VIAGENS", "TABELA_OUTROS", "TABELA_CRONOGRAMA", "TABELA_DESEMBOLSO",
+];
+
+function replaceFinanceiroTagsInTemplate(zip: PizZip): void {
+  let docXml = zip.file("word/document.xml")?.asText();
+  if (!docXml) return;
+
+  for (const tag of FINANCEIRO_TAGS) {
+    // The tag may be split across multiple runs by Word
+    const textOnly = docXml.replace(/<[^>]+>/g, "");
+    if (!textOnly.includes(`{${tag}}`)) continue;
+
+    // Find the opening brace for this tag
+    let searchPos = 0;
+    while (searchPos < docXml.length) {
+      const braceIdx = docXml.indexOf("{", searchPos);
+      if (braceIdx === -1) break;
+
+      // Check if this brace starts our tag (strip XML between brace and tag name)
+      const nearby = docXml.substring(braceIdx, braceIdx + 1000);
+      const stripped = nearby.replace(/<[^>]+>/g, "");
+      if (stripped.startsWith(`{${tag}}`)) {
+        // Find the closing brace in the raw XML
+        let closeIdx = braceIdx;
+        let strippedCount = 0;
+        const target = `{${tag}}`;
+        for (let ci = braceIdx; ci < docXml.length && strippedCount < target.length; ci++) {
+          if (docXml[ci] === "<") {
+            // Skip XML tag
+            const endTag = docXml.indexOf(">", ci);
+            if (endTag !== -1) ci = endTag;
+            continue;
+          }
+          strippedCount++;
+          closeIdx = ci;
+        }
+
+        // Find the paragraph containing this tag
+        const pStart = Math.max(
+          docXml.lastIndexOf("<w:p ", braceIdx),
+          docXml.lastIndexOf("<w:p>", braceIdx)
+        );
+        const pEnd: number = docXml.indexOf("</w:p>", closeIdx);
+        if (pStart !== -1 && pEnd !== -1) {
+          const endIdx: number = pEnd + "</w:p>".length;
+          const replacement = `<w:p><w:r><w:rPr>${DEFAULT_FONT}</w:rPr><w:t>{@${tag}}</w:t></w:r></w:p>`;
+          docXml = docXml.substring(0, pStart) + replacement + docXml.substring(endIdx);
+        }
+        break;
+      }
+      searchPos = braceIdx + 1;
+    }
+  }
+
+  // Fix static text "R$ xxxxx (VALOR por EXTENSO)" in the desembolso section
+  // Replace "xxxxx" with {totalValue} tag and "VALOR por EXTENSO" with {totalValueWritten} tag
+  const replaceInWt = (xml: string, search: string, replace: string): string => {
+    let result = xml;
+    let pos = 0;
+    while (pos < result.length) {
+      const idx = result.indexOf(search, pos);
+      if (idx === -1) break;
+      const prevTag = result.lastIndexOf("<w:t", idx);
+      const prevClose = result.lastIndexOf("</w:t>", idx);
+      if (prevTag > prevClose) {
+        result = result.substring(0, idx) + replace + result.substring(idx + search.length);
+        pos = idx + replace.length;
+      } else {
+        pos = idx + search.length;
+      }
+    }
+    return result;
+  };
+
+  docXml = replaceInWt(docXml, "xxxxx", "{totalValue}");
+  docXml = replaceInWt(docXml, "VALOR por EXTENSO", "{totalValueWritten}");
+
+  // Fix template bug: second "coordinatorInstitution" should be "Empresa"
+  // The tag is split across runs: {  coordinatorInstitution  } — so search for raw text
+  const ciText = "coordinatorInstitution";
+  const firstCI = docXml.indexOf(ciText);
+  if (firstCI !== -1) {
+    const secondCI = docXml.indexOf(ciText, firstCI + ciText.length);
+    if (secondCI !== -1) {
+      // Replace the whole tag structure: find the "{" run before and "}" run after
+      // Look backward for the "{" in a <w:t> tag
+      const braceOpenSearch = docXml.lastIndexOf("{", secondCI);
+      // Look forward for the "}" after the tag text
+      const braceCloseSearch = docXml.indexOf("}", secondCI + ciText.length);
+      if (braceOpenSearch !== -1 && braceCloseSearch !== -1) {
+        // Replace from "{" through "}" with just "Empresa"
+        docXml = docXml.substring(0, braceOpenSearch) + "Empresa" + docXml.substring(braceCloseSearch + 1);
+      }
+    }
+  }
+
+  zip.file("word/document.xml", docXml);
+}
+
+// ---------------------------------------------------------------------------
 // Main generator
 // ---------------------------------------------------------------------------
 
@@ -697,9 +1343,10 @@ export async function generateDocx(plan: PlanFormData): Promise<Buffer> {
   const originalZip = new PizZip(templateContent); // keep pristine copy
   const zip = new PizZip(templateContent);          // this one gets modified by docxtemplater
 
-  // 1b. Pre-process: replace {#activities}...{/activities} loop with raw OOXML tag
+  // 1b. Pre-process: replace loops and financeiro tags with raw OOXML tags
   replaceActivitiesLoopInTemplate(zip);
   replaceProfessionalsLoopInTemplate(zip);
+  replaceFinanceiroTagsInTemplate(zip);
 
   // 2. Create docxtemplater instance
   const doc = new Docxtemplater(zip, {
@@ -707,7 +1354,23 @@ export async function generateDocx(plan: PlanFormData): Promise<Buffer> {
     linebreaks: true,
   });
 
-  // 3. Build data object
+  // 3. Pre-calculate financial totals
+  const fin: FinanceiroData = (plan as unknown as Record<string, unknown>).financeiro as FinanceiroData || defaultFinanceiroData;
+  const projMonths = calcProjectMonths(plan.executionStartDate, plan.executionEndDate);
+
+  // Calculate total value from financeiro (same formula as FinResumoTab)
+  const subtotalDireto = sumEquipItems(fin.equipamentos) + sumEquipItems(fin.laboratorios) +
+    sumRhItems(fin.rhDireto, projMonths) + sumRhItems(fin.rhIndireto, projMonths) +
+    sumEquipItems(fin.servicosTerceiros) + sumEquipItems(fin.materialConsumo) +
+    sumOutrosItems(fin.outros.livros) + sumOutrosItems(fin.outros.treinamentos) +
+    sumOutrosItems(fin.outros.viagens) + sumOutrosItems(fin.outros.outrosDispendios);
+  const issP = (fin.config.issPercent || 0) / 100;
+  const doaP = (fin.config.doaPercent || 0) / 100;
+  const reservaP = (fin.config.reservaPercent || 0) / 100;
+  const divisorGeral = 1 - issP - doaP - reservaP;
+  const calculatedTotal = divisorGeral > 0 ? subtotalDireto / divisorGeral : subtotalDireto;
+
+  // 3b. Build data object
   const data: Record<string, unknown> = {
     // Header
     partnerName: plan.partnerName || "Empresa Parceira",
@@ -721,8 +1384,8 @@ export async function generateDocx(plan: PlanFormData): Promise<Buffer> {
     projectNickname: plan.projectNickname || " ",
     coordinatorInstitution: plan.coordinatorInstitution || " ",
     coordinatorFoxconn: plan.coordinatorFoxconn || " ",
-    totalValue: plan.totalValue != null ? formatBRL(plan.totalValue) : "\u2014",
-    totalValueWritten: plan.totalValueWritten || " ",
+    totalValue: calculatedTotal > 0 ? calculatedTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "\u2014",
+    totalValueWritten: calculatedTotal > 0 ? numberToWordsBRL(calculatedTotal) : " ",
     executionPeriod: `${formatDateBR(plan.executionStartDate)} a ${formatDateBR(plan.executionEndDate)}`,
     validityPeriod: `${formatDateBR(plan.validityStartDate)} a ${formatDateBR(plan.validityEndDate)}`,
 
@@ -786,6 +1449,22 @@ export async function generateDocx(plan: PlanFormData): Promise<Buffer> {
     solucao: tiptapToOoxml(plan.solucao as JSONContent | null),
     complementares: tiptapToOoxml(plan.complementares as JSONContent | null),
   };
+
+  // 3c. Add financial tables
+  // Map tag names to data keys (must match replaceFinanceiroTagsInTemplate — uses exact tag name)
+  data["TABELA_ORCAMENTO_RESUMO"] = buildOrcamentoResumoOoxml(fin, projMonths);
+  data["TABELA_EQUIPAMENTOS"] = buildEquipTableOoxml(fin.equipamentos);
+  data["TABELA_LABORATORIOS"] = buildEquipTableOoxml(fin.laboratorios);
+  data["TABELA_RH_DIRETO"] = buildRhTableOoxml(fin.rhDireto, projMonths);
+  data["TABELA_RH_INDIRETO"] = buildRhTableOoxml(fin.rhIndireto, projMonths);
+  data["TABELA_SERVICOS_TERCEIROS"] = buildEquipTableOoxml(fin.servicosTerceiros);
+  data["TABELA_MATERIAL_CONSUMO"] = buildEquipTableOoxml(fin.materialConsumo);
+  data["TABELA_LIVROS"] = buildOutrosTableOoxml(fin.outros.livros);
+  data["TABELA_TREINAMENTOS"] = buildOutrosTableOoxml(fin.outros.treinamentos);
+  data["TABELA_VIAGENS"] = buildOutrosTableOoxml(fin.outros.viagens);
+  data["TABELA_OUTROS"] = buildOutrosTableOoxml(fin.outros.outrosDispendios);
+  data["TABELA_CRONOGRAMA"] = buildCronogramaFinanceiroOoxml(fin, projMonths);
+  data["TABELA_DESEMBOLSO"] = buildDesembolsoOoxml(fin, projMonths, plan.executionStartDate);
 
   // 4. Render
   doc.render(data);
