@@ -6,7 +6,6 @@ import { ArrowLeft, Download, FileSpreadsheet, Loader2, Check } from "lucide-rea
 import { usePlanStore } from "@/lib/store";
 import { defaultPlanFormData, defaultFinanceiroData } from "@/types/plan";
 import { FinanceiroShell } from "@/components/financeiro/FinanceiroShell";
-import { ElapsedTimer } from "@/components/ui/ElapsedTimer";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function apiResponseToFormData(plan: any) {
@@ -105,7 +104,6 @@ export default function FinanceiroPage({
   const isDirty = usePlanStore((s) => s.isDirty);
   const markSaved = usePlanStore((s) => s.markSaved);
   const storePlanId = usePlanStore((s) => s.planId);
-  const createdAt = usePlanStore((s) => s.createdAt);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
@@ -126,7 +124,7 @@ export default function FinanceiroPage({
         }
         const plan = await res.json();
         const data = apiResponseToFormData(plan);
-        loadPlan(planId, data as any, plan.completedSections ?? [], plan.createdAt);
+        loadPlan(planId, data as any, plan.completedSections ?? []);
       } catch {
         router.push("/");
       } finally {
@@ -260,9 +258,6 @@ export default function FinanceiroPage({
 
       {/* Main content */}
       <FinanceiroShell />
-
-      {/* Elapsed timer */}
-      {createdAt && <ElapsedTimer createdAt={createdAt} />}
     </div>
   );
 }

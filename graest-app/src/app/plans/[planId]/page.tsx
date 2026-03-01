@@ -182,7 +182,7 @@ export default function PlanEditorPage({
         const plan = await res.json();
         const data = apiResponseToFormData(plan);
         const completedSections = plan.completedSections ?? [];
-        loadPlan(planId, data, completedSections);
+        loadPlan(planId, data, completedSections, plan.createdAt);
         // If plan has no activities in DB but we loaded defaults, mark dirty to trigger auto-save
         if (!plan.activities || plan.activities.length === 0) {
           usePlanStore.getState().updateField("activities", data.activities);

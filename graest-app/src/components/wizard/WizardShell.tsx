@@ -8,9 +8,10 @@ import { StepRenderer } from "./StepRenderer";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Check, ChevronLeft, ChevronRight, Circle, Download, Lightbulb } from "lucide-react";
+import { ElapsedTimer } from "@/components/ui/ElapsedTimer";
 
 export function WizardShell() {
-  const { planId, currentStep, setStep, isDirty, lastSaved, completedSections, formData, markSectionComplete, markSectionIncomplete } = usePlanStore();
+  const { planId, currentStep, setStep, isDirty, lastSaved, completedSections, formData, markSectionComplete, markSectionIncomplete, createdAt } = usePlanStore();
   const totalSteps = WIZARD_SECTIONS.length;
   const [exporting, setExporting] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -142,6 +143,9 @@ export function WizardShell() {
           </div>
         </div>
       </div>
+
+      {/* Elapsed timer */}
+      {createdAt && <ElapsedTimer createdAt={createdAt} />}
 
       {/* Tips modal for new plans */}
       <Modal open={showTips} onClose={dismissTips} title="Dicas para um bom Plano de Trabalho">

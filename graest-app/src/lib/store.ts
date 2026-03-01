@@ -9,6 +9,7 @@ interface PlanStore {
   isDirty: boolean;
   lastSaved: Date | null;
   completedSections: number[];
+  createdAt: Date | null;
 
   setPlanId: (id: string | null) => void;
   setStep: (step: number) => void;
@@ -16,7 +17,7 @@ interface PlanStore {
   updateFields: (fields: Partial<PlanFormData>) => void;
   markSectionComplete: (section: number) => void;
   markSectionIncomplete: (section: number) => void;
-  loadPlan: (id: string, data: PlanFormData, completedSections?: number[]) => void;
+  loadPlan: (id: string, data: PlanFormData, completedSections?: number[], createdAt?: string) => void;
   resetPlan: () => void;
   markSaved: () => void;
 }
@@ -28,6 +29,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
   isDirty: false,
   lastSaved: null,
   completedSections: [],
+  createdAt: null,
 
   setPlanId: (id) => set({ planId: id }),
 
@@ -57,12 +59,13 @@ export const usePlanStore = create<PlanStore>((set) => ({
       completedSections: state.completedSections.filter((s) => s !== section),
     })),
 
-  loadPlan: (id, data, completedSections) =>
+  loadPlan: (id, data, completedSections, createdAt) =>
     set({
       planId: id,
       formData: data,
       isDirty: false,
       completedSections: completedSections ?? [],
+      createdAt: createdAt ? new Date(createdAt) : null,
       currentStep: 0,
     }),
 
@@ -74,6 +77,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
       isDirty: false,
       lastSaved: null,
       completedSections: [],
+      createdAt: null,
     }),
 
   markSaved: () =>
